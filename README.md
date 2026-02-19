@@ -1,2 +1,139 @@
-# Merket_for_10_M_uesr
-Merket_for_10_M_uesr
+# Marketplace — от 10K до 10M пользователей
+
+Pet-проект: итеративное масштабирование маркетплейса. Начинаем с простого бэкенда на 10K пользователей и поэтапно оптимизируем архитектуру до 10M.
+
+## Философия
+
+Не строить «идеальную систему» на бумаге. Вместо этого:
+
+1. **Запустить** — минимальный работающий бэкенд
+2. **Нагрузить** — Locust, реальные сценарии, Grafana для метрик
+3. **Найти bottleneck** — connection pool? full scan? GIL? отсутствие кэша?
+4. **Оптимизировать** — точечно, с замерами до/после
+5. **Повторить** — пока не выдержит целевую нагрузку
+
+Каждый уровень масштаба (10K → 100K → 1M → 10M) — это переосмысление архитектуры на основе реальных данных, а не предположений.
+
+## Текущий статус
+
+**Стадия:** MVP (10K пользователей) — бэкенд + фронтенд работают
+
+| Компонент | Статус | Описание |
+|-----------|--------|----------|
+| Identity Service | ✅ Готов | Регистрация, логин, JWT (FastAPI + asyncpg) |
+| Catalog Service | ✅ Готов | CRUD товаров, поиск ILIKE (намеренно без индекса) |
+| Buyer Frontend | ✅ Готов | Next.js 15 — каталог, поиск, авторизация, создание товара |
+| Shared Library | ✅ Готов | Config, errors, security, database (libs/py/common) |
+| Docker Compose | ✅ Готов | Dev (hot reload) + Prod (multi-worker, monitoring) |
+| Prometheus + Grafana | ✅ Готов | RPS, latency p50/p95/p99, error rate |
+| Seed Script | ✅ Готов | 50K users + 100K products через COPY protocol |
+| Locust | ✅ Готов | 3 сценария: Browse (70%), Search (20%), Seller (10%) |
+| Unit Tests | ✅ Готов | 28 тестов (identity: 15, catalog: 13) |
+
+## Стек
+
+| Слой | Технология | Почему |
+|------|-----------|--------|
+| Бизнес-логика | Python 3.12 / FastAPI | Быстрая разработка, Clean Architecture |
+| Performance-critical | Rust (будет) | API gateway, поиск, видео — когда Python упрётся в потолок |
+| Frontend | Next.js 15 / Tailwind CSS 4 | SSR/SSG, App Router |
+| БД | PostgreSQL 16 | Каждый сервис — своя БД |
+| Кэш | Redis 7 | Подключен, но не используется (добавим когда увидим bottleneck) |
+| Метрики | Prometheus + Grafana | Автоматические метрики через prometheus-fastapi-instrumentator |
+| Нагрузка | Locust | Сценарии, имитирующие реальный трафик |
+| Пакеты | uv (Python), npm (JS) | uv workspace для монорепы |
+
+## Быстрый старт
+
+### Бэкенд (Docker)
+
+```bash
+# Dev — hot reload, volume mounts
+docker compose -f docker-compose.dev.yml up
+
+# Засеять данные (50K users + 100K products)
+docker compose -f docker-compose.dev.yml --profile seed up seed
+```
+
+### Фронтенд
+
+```bash
+cd apps/buyer
+npm install
+npm run dev    # http://localhost:3001
+```
+
+### Тесты
+
+```bash
+# Установить зависимости (из корня)
+uv sync --all-packages
+
+# Identity (15 тестов)
+cd services/py/identity && uv run --package identity pytest tests/ -v
+
+# Catalog (13 тестов)
+cd services/py/catalog && uv run --package catalog pytest tests/ -v
+```
+
+### Нагрузочное тестирование
+
+```bash
+# Prod stack + monitoring
+docker compose -f docker-compose.prod.yml up -d
+
+# Locust UI → http://localhost:8089
+docker compose -f docker-compose.prod.yml --profile loadtest up locust
+
+# Grafana → http://localhost:3000
+```
+
+## Порты
+
+| Сервис | Порт |
+|--------|------|
+| Identity API | 8001 |
+| Catalog API | 8002 |
+| Buyer Frontend | 3001 |
+| Grafana | 3000 |
+| Prometheus | 9090 |
+| Locust | 8089 |
+| Identity DB (Postgres) | 5433 |
+| Catalog DB (Postgres) | 5434 |
+| Redis | 6379 |
+
+## Структура
+
+```
+├── libs/py/common/          — Shared: config, errors, security, database
+├── services/py/identity/    — Auth: register, login, JWT
+├── services/py/catalog/     — Products: CRUD, search
+├── apps/buyer/              — Next.js frontend
+├── deploy/docker/           — Dockerfiles, Prometheus, Grafana
+├── tools/seed/              — Data generation (50K users, 100K products)
+├── tools/locust/            — Load test scenarios
+├── docs/goals/              — Architecture decisions, domain specs
+└── docs/phases/             — Implementation roadmap
+```
+
+## Roadmap
+
+Подробный roadmap: [docs/goals/00-ROADMAP.md](docs/goals/00-ROADMAP.md)
+
+| Стадия | Нагрузка | Ключевые изменения | Статус |
+|--------|----------|-------------------|--------|
+| **MVP** | 10K users | 2 Python сервиса, Next.js, Postgres, без кэша | 🟡 В работе |
+| **Оптимизация** | 10K → 100K | Индексы, Redis кэш, PgBouncer, connection tuning | 🔴 Не начато |
+| **Масштабирование** | 100K → 1M | Rust gateway, Meilisearch, NATS events, read replicas | 🔴 Не начато |
+| **Платформа** | 1M → 10M | Sharding, multi-region, video, live shopping | 🔴 Не начато |
+
+## Документация
+
+| Документ | Описание |
+|----------|----------|
+| [Видение продукта](docs/goals/01-PRODUCT-VISION.md) | Бизнес-метрики, user journeys, revenue |
+| [Архитектура](docs/goals/02-ARCHITECTURE-PRINCIPLES.md) | ADR, принципы, выбор технологий |
+| [Домены](docs/goals/04-DOMAINS.md) | 11 bounded contexts, event matrix |
+| [Безопасность](docs/goals/06-SECURITY.md) | Threat model, mitigation |
+| [Observability](docs/goals/09-OBSERVABILITY.md) | SLO, метрики, алерты |
+| [Frontend](docs/goals/10-FRONTEND.md) | Next.js архитектура, performance budgets |
