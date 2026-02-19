@@ -17,18 +17,18 @@ services:
       timeout: 3s
       retries: 5
 
-  catalog-db:
+  course-db:
     image: postgres:16-alpine
     environment:
-      POSTGRES_DB: catalog
-      POSTGRES_USER: catalog
-      POSTGRES_PASSWORD: catalog
+      POSTGRES_DB: course
+      POSTGRES_USER: course
+      POSTGRES_PASSWORD: course
     ports:
       - "5434:5432"
     volumes:
-      - catalog-db-data:/var/lib/postgresql/data
+      - course-db-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U catalog"]
+      test: ["CMD-SHELL", "pg_isready -U course"]
       interval: 5s
       timeout: 3s
       retries: 5
@@ -62,23 +62,23 @@ services:
       identity-db:
         condition: service_healthy
 
-  catalog:
+  course:
     build:
       context: .
-      dockerfile: deploy/docker/catalog.Dockerfile
+      dockerfile: deploy/docker/course.Dockerfile
     ports:
       - "8002:8002"
     environment:
-      DATABASE_URL: postgresql://catalog:catalog@catalog-db:5432/catalog
+      DATABASE_URL: postgresql://course:course@course-db:5432/course
       REDIS_URL: redis://redis:6379
       JWT_SECRET: dev-secret-key
     volumes:
-      - ./services/py/catalog/app:/app/app
-      - ./services/py/catalog/migrations:/app/migrations
+      - ./services/py/course/app:/app/app
+      - ./services/py/course/migrations:/app/migrations
       - ./libs/py/common/common:/libs/common/common
     command: uvicorn app.main:app --host 0.0.0.0 --port 8002 --reload
     depends_on:
-      catalog-db:
+      course-db:
         condition: service_healthy
 
   seed:
@@ -87,15 +87,15 @@ services:
       dockerfile: deploy/docker/seed.Dockerfile
     environment:
       IDENTITY_DB_URL: postgresql://identity:identity@identity-db:5432/identity
-      CATALOG_DB_URL: postgresql://catalog:catalog@catalog-db:5432/catalog
+      COURSE_DB_URL: postgresql://course:course@course-db:5432/course
     depends_on:
       identity:
         condition: service_started
-      catalog:
+      course:
         condition: service_started
     profiles:
       - seed
 
 volumes:
   identity-db-data:
-  catalog-db-data:
+  course-db-data:

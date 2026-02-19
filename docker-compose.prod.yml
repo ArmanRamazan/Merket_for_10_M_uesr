@@ -18,18 +18,18 @@ services:
       retries: 5
     restart: unless-stopped
 
-  catalog-db:
+  course-db:
     image: postgres:16-alpine
     environment:
-      POSTGRES_DB: catalog
-      POSTGRES_USER: catalog
-      POSTGRES_PASSWORD: ${CATALOG_DB_PASSWORD:-catalog}
+      POSTGRES_DB: course
+      POSTGRES_USER: course
+      POSTGRES_PASSWORD: ${COURSE_DB_PASSWORD:-course}
     ports:
       - "5434:5432"
     volumes:
-      - catalog-db-data:/var/lib/postgresql/data
+      - course-db-data:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U catalog"]
+      test: ["CMD-SHELL", "pg_isready -U course"]
       interval: 5s
       timeout: 3s
       retries: 5
@@ -68,19 +68,19 @@ services:
       start_period: 15s
     restart: unless-stopped
 
-  catalog:
+  course:
     build:
       context: .
-      dockerfile: deploy/docker/catalog.Dockerfile
+      dockerfile: deploy/docker/course.Dockerfile
     ports:
       - "8002:8002"
     environment:
-      DATABASE_URL: postgresql://catalog:${CATALOG_DB_PASSWORD:-catalog}@catalog-db:5432/catalog
+      DATABASE_URL: postgresql://course:${COURSE_DB_PASSWORD:-course}@course-db:5432/course
       REDIS_URL: redis://redis:6379
       JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
     command: uvicorn app.main:app --host 0.0.0.0 --port 8002 --workers 4
     depends_on:
-      catalog-db:
+      course-db:
         condition: service_healthy
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8002/docs')"]
@@ -96,11 +96,11 @@ services:
       dockerfile: deploy/docker/seed.Dockerfile
     environment:
       IDENTITY_DB_URL: postgresql://identity:${IDENTITY_DB_PASSWORD:-identity}@identity-db:5432/identity
-      CATALOG_DB_URL: postgresql://catalog:${CATALOG_DB_PASSWORD:-catalog}@catalog-db:5432/catalog
+      COURSE_DB_URL: postgresql://course:${COURSE_DB_PASSWORD:-course}@course-db:5432/course
     depends_on:
       identity:
         condition: service_healthy
-      catalog:
+      course:
         condition: service_healthy
     profiles:
       - seed
@@ -114,7 +114,7 @@ services:
       - prometheus-data:/prometheus
     depends_on:
       - identity
-      - catalog
+      - course
     restart: unless-stopped
 
   grafana:
@@ -141,17 +141,17 @@ services:
       - "8089:8089"
     environment:
       IDENTITY_URL: http://identity:8001
-      CATALOG_URL: http://catalog:8002
+      COURSE_URL: http://course:8002
     depends_on:
       identity:
         condition: service_healthy
-      catalog:
+      course:
         condition: service_healthy
     profiles:
       - loadtest
 
 volumes:
   identity-db-data:
-  catalog-db-data:
+  course-db-data:
   prometheus-data:
   grafana-data:

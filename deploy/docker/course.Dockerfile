@@ -1,12 +1,13 @@
 FROM python:3.12-slim
 
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
+ADD https://astral.sh/uv/install.sh /tmp/uv-install.sh
+RUN sh /tmp/uv-install.sh && mv /root/.local/bin/uv /bin/uv && rm /tmp/uv-install.sh
 
 WORKDIR /app
 
 COPY libs/py/common /libs/common
 
-COPY services/py/catalog/pyproject.toml .
+COPY services/py/course/pyproject.toml .
 
 RUN uv venv /app/.venv \
     && uv pip install --python /app/.venv /libs/common \
@@ -20,7 +21,7 @@ RUN uv venv /app/.venv \
 
 ENV PATH="/app/.venv/bin:$PATH"
 
-COPY services/py/catalog/ .
+COPY services/py/course/ .
 
 EXPOSE 8002
 

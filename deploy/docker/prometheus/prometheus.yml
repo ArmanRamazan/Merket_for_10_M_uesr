@@ -7,6 +7,6 @@ scrape_configs:
     static_configs:
       - targets: ["identity:8001"]
 
-  - job_name: catalog
+  - job_name: course
     static_configs:
-      - targets: ["catalog:8002"]
+      - targets: ["course:8002"]

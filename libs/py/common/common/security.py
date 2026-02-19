@@ -8,6 +8,7 @@ def create_access_token(
     secret: str,
     algorithm: str = "HS256",
     ttl_seconds: int = 3600,
+    extra_claims: dict | None = None,
 ) -> str:
     now = datetime.now(timezone.utc)
     payload = {
@@ -15,6 +16,8 @@ def create_access_token(
         "iat": now,
         "exp": now + timedelta(seconds=ttl_seconds),
     }
+    if extra_claims:
+        payload.update(extra_claims)
     return jwt.encode(payload, secret, algorithm=algorithm)
 
 

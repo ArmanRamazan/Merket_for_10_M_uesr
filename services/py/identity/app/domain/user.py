@@ -1,8 +1,14 @@
 from dataclasses import dataclass
 from datetime import datetime
+from enum import StrEnum
 from uuid import UUID
 
 from pydantic import BaseModel, EmailStr
+
+
+class UserRole(StrEnum):
+    STUDENT = "student"
+    TEACHER = "teacher"
 
 
 @dataclass(frozen=True)
@@ -11,6 +17,8 @@ class User:
     email: str
     password_hash: str
     name: str
+    role: UserRole
+    is_verified: bool
     created_at: datetime
 
 
@@ -18,6 +26,7 @@ class UserCreate(BaseModel):
     email: EmailStr
     password: str
     name: str
+    role: UserRole = UserRole.STUDENT
 
 
 class UserLogin(BaseModel):
@@ -34,4 +43,6 @@ class UserResponse(BaseModel):
     id: UUID
     email: str
     name: str
+    role: UserRole
+    is_verified: bool
     created_at: datetime

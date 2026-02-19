@@ -4,15 +4,14 @@ import random
 from locust import HttpUser, task, between, events
 
 IDENTITY_URL = os.environ.get("IDENTITY_URL", "http://localhost:8001")
-CATALOG_URL = os.environ.get("CATALOG_URL", "http://localhost:8002")
+COURSE_URL = os.environ.get("COURSE_URL", "http://localhost:8002")
 
 SEARCH_TERMS = [
-    "premium", "vintage", "modern", "classic", "wireless",
-    "organic", "compact", "professional", "limited", "handmade",
-    "electronics", "clothing", "sports", "beauty", "health",
+    "python", "javascript", "machine learning", "data science", "web",
+    "mobile", "devops", "cloud", "security", "algorithms",
+    "complete", "advanced", "practical", "beginner", "professional",
 ]
 
-_tokens: list[str] = []
 _user_counter = 0
 
 
@@ -22,71 +21,62 @@ def _next_user_id() -> int:
     return _user_counter
 
 
-class BrowsingUser(HttpUser):
-    """70% of traffic — browse catalog, view products."""
+class StudentUser(HttpUser):
+    """70% of traffic — browse courses, view details."""
 
     weight = 7
     wait_time = between(1, 3)
-    host = CATALOG_URL
+    host = COURSE_URL
 
     @task(5)
-    def list_products(self) -> None:
+    def list_courses(self) -> None:
         offset = random.randint(0, 1000)
-        self.client.get(f"/products?limit=20&offset={offset}", name="/products")
+        self.client.get(f"/courses?limit=20&offset={offset}", name="/courses")
 
     @task(3)
-    def view_product(self) -> None:
-        resp = self.client.get("/products?limit=1", name="/products (for id)")
+    def view_course(self) -> None:
+        resp = self.client.get("/courses?limit=1", name="/courses (for id)")
         if resp.status_code == 200:
             items = resp.json().get("items", [])
             if items:
-                pid = items[0]["id"]
-                self.client.get(f"/products/{pid}", name="/products/:id")
+                cid = items[0]["id"]
+                self.client.get(f"/courses/{cid}", name="/courses/:id")
 
 
 class SearchUser(HttpUser):
-    """20% of traffic — search catalog (intentional bottleneck)."""
+    """20% of traffic — search courses (intentional bottleneck)."""
 
     weight = 2
     wait_time = between(1, 2)
-    host = CATALOG_URL
+    host = COURSE_URL
 
     @task
-    def search_products(self) -> None:
+    def search_courses(self) -> None:
         term = random.choice(SEARCH_TERMS)
-        self.client.get(f"/products?q={term}&limit=20", name="/products?q=:term")
+        self.client.get(f"/courses?q={term}&limit=20", name="/courses?q=:term")
 
 
-class SellerUser(HttpUser):
-    """10% of traffic — register, login, create products."""
+class TeacherUser(HttpUser):
+    """10% of traffic — register as teacher, create courses."""
 
     weight = 1
     wait_time = between(2, 5)
     host = IDENTITY_URL
 
     def on_start(self) -> None:
-        uid = _next_user_id()
-        email = f"locust_seller_{uid}@test.com"
-        password = "testpass123"
+        # Login as a pre-seeded verified teacher
+        uid = random.randint(0, 6999)  # first 7000 users are verified teachers (10000 teachers * 0.7)
+        email = f"user{uid}@example.com"
+        password = "password123"
 
         resp = self.client.post(
-            "/register",
-            json={"email": email, "password": password, "name": f"Seller {uid}"},
-            name="/register",
+            "/login",
+            json={"email": email, "password": password},
+            name="/login",
         )
 
         if resp.status_code == 200:
             self._token = resp.json()["access_token"]
-        elif resp.status_code == 409:
-            resp = self.client.post(
-                "/login",
-                json={"email": email, "password": password},
-                name="/login",
-            )
-            if resp.status_code == 200:
-                self._token = resp.json()["access_token"]
-            else:
-                self._token = None
         else:
             self._token = None
 
@@ -101,20 +91,23 @@ class SellerUser(HttpUser):
         )
 
     @task(1)
-    def create_product(self) -> None:
+    def create_course(self) -> None:
         if not self._token:
             return
-        # Post to catalog service
+        levels = ["beginner", "intermediate", "advanced"]
+        is_free = random.random() < 0.3
         with self.client.post(
-            f"{CATALOG_URL}/products",
+            f"{COURSE_URL}/courses",
             json={
-                "title": f"Load Test Product {random.randint(1, 100000)}",
+                "title": f"Load Test Course {random.randint(1, 100000)}",
                 "description": "Created during load testing",
-                "price": round(random.uniform(10, 999), 2),
-                "stock": random.randint(1, 100),
+                "is_free": is_free,
+                "price": None if is_free else round(random.uniform(10, 199), 2),
+                "duration_minutes": random.choice([60, 120, 180]),
+                "level": random.choice(levels),
             },
             headers={"Authorization": f"Bearer {self._token}"},
-            name="[catalog] POST /products",
+            name="[course] POST /courses",
             catch_response=True,
         ) as resp:
             if resp.status_code == 201:

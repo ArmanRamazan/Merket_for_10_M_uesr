@@ -1,6 +1,6 @@
-# Marketplace — от 10K до 10M пользователей
+# EduPlatform — от 10K до 10M пользователей
 
-Pet-проект: итеративное масштабирование маркетплейса. Начинаем с простого бэкенда на 10K пользователей и поэтапно оптимизируем архитектуру до 10M.
+Pet-проект: итеративное масштабирование учебной платформы. Начинаем с простого бэкенда на 10K пользователей и поэтапно оптимизируем архитектуру до 10M.
 
 ## Философия
 
@@ -20,15 +20,15 @@ Pet-проект: итеративное масштабирование марк
 
 | Компонент | Статус | Описание |
 |-----------|--------|----------|
-| Identity Service | ✅ Готов | Регистрация, логин, JWT (FastAPI + asyncpg) |
-| Catalog Service | ✅ Готов | CRUD товаров, поиск ILIKE (намеренно без индекса) |
-| Buyer Frontend | ✅ Готов | Next.js 15 — каталог, поиск, авторизация, создание товара |
+| Identity Service | ✅ Готов | Регистрация, логин, JWT, система ролей (student/teacher) |
+| Course Service | ✅ Готов | CRUD курсов, поиск ILIKE (намеренно без индекса), role-based access |
+| Buyer Frontend | ✅ Готов | Next.js 15 — каталог курсов, поиск, авторизация, создание курса |
 | Shared Library | ✅ Готов | Config, errors, security, database (libs/py/common) |
 | Docker Compose | ✅ Готов | Dev (hot reload) + Prod (multi-worker, monitoring) |
 | Prometheus + Grafana | ✅ Готов | RPS, latency p50/p95/p99, error rate |
-| Seed Script | ✅ Готов | 50K users + 100K products через COPY protocol |
-| Locust | ✅ Готов | 3 сценария: Browse (70%), Search (20%), Seller (10%) |
-| Unit Tests | ✅ Готов | 28 тестов (identity: 15, catalog: 13) |
+| Seed Script | ✅ Готов | 50K users (80% students, 20% teachers) + 100K courses через COPY protocol |
+| Locust | ✅ Готов | 3 сценария: Student (70%), Search (20%), Teacher (10%) |
+| Unit Tests | ✅ Готов | identity + course тесты |
 
 ## Стек
 
@@ -51,7 +51,7 @@ Pet-проект: итеративное масштабирование марк
 # Dev — hot reload, volume mounts
 docker compose -f docker-compose.dev.yml up
 
-# Засеять данные (50K users + 100K products)
+# Засеять данные (50K users + 100K courses)
 docker compose -f docker-compose.dev.yml --profile seed up seed
 ```
 
@@ -69,11 +69,11 @@ npm run dev    # http://localhost:3001
 # Установить зависимости (из корня)
 uv sync --all-packages
 
-# Identity (15 тестов)
+# Identity
 cd services/py/identity && uv run --package identity pytest tests/ -v
 
-# Catalog (13 тестов)
-cd services/py/catalog && uv run --package catalog pytest tests/ -v
+# Course
+cd services/py/course && uv run --package course pytest tests/ -v
 ```
 
 ### Нагрузочное тестирование
@@ -93,24 +93,24 @@ docker compose -f docker-compose.prod.yml --profile loadtest up locust
 | Сервис | Порт |
 |--------|------|
 | Identity API | 8001 |
-| Catalog API | 8002 |
+| Course API | 8002 |
 | Buyer Frontend | 3001 |
 | Grafana | 3000 |
 | Prometheus | 9090 |
 | Locust | 8089 |
 | Identity DB (Postgres) | 5433 |
-| Catalog DB (Postgres) | 5434 |
+| Course DB (Postgres) | 5434 |
 | Redis | 6379 |
 
 ## Структура
 
 ```
 ├── libs/py/common/          — Shared: config, errors, security, database
-├── services/py/identity/    — Auth: register, login, JWT
-├── services/py/catalog/     — Products: CRUD, search
+├── services/py/identity/    — Auth: register, login, JWT, roles
+├── services/py/course/      — Courses: CRUD, search, role-based access
 ├── apps/buyer/              — Next.js frontend
 ├── deploy/docker/           — Dockerfiles, Prometheus, Grafana
-├── tools/seed/              — Data generation (50K users, 100K products)
+├── tools/seed/              — Data generation (50K users, 100K courses)
 ├── tools/locust/            — Load test scenarios
 ├── docs/goals/              — Architecture decisions, domain specs
 └── docs/phases/             — Implementation roadmap
@@ -125,7 +125,7 @@ docker compose -f docker-compose.prod.yml --profile loadtest up locust
 | **MVP** | 10K users | 2 Python сервиса, Next.js, Postgres, без кэша | 🟡 В работе |
 | **Оптимизация** | 10K → 100K | Индексы, Redis кэш, PgBouncer, connection tuning | 🔴 Не начато |
 | **Масштабирование** | 100K → 1M | Rust gateway, Meilisearch, NATS events, read replicas | 🔴 Не начато |
-| **Платформа** | 1M → 10M | Sharding, multi-region, video, live shopping | 🔴 Не начато |
+| **Платформа** | 1M → 10M | Sharding, multi-region, video, live streaming | 🔴 Не начато |
 
 ## Документация
 
@@ -133,7 +133,7 @@ docker compose -f docker-compose.prod.yml --profile loadtest up locust
 |----------|----------|
 | [Видение продукта](docs/goals/01-PRODUCT-VISION.md) | Бизнес-метрики, user journeys, revenue |
 | [Архитектура](docs/goals/02-ARCHITECTURE-PRINCIPLES.md) | ADR, принципы, выбор технологий |
-| [Домены](docs/goals/04-DOMAINS.md) | 11 bounded contexts, event matrix |
+| [Домены](docs/goals/04-DOMAINS.md) | Bounded contexts, event matrix |
 | [Безопасность](docs/goals/06-SECURITY.md) | Threat model, mitigation |
 | [Observability](docs/goals/09-OBSERVABILITY.md) | SLO, метрики, алерты |
 | [Frontend](docs/goals/10-FRONTEND.md) | Next.js архитектура, performance budgets |

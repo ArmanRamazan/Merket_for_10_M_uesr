@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock
 import jwt
 
 from common.errors import ConflictError, NotFoundError
-from app.domain.user import User
+from app.domain.user import User, UserRole
 from app.services.auth_service import AuthService
 
 
@@ -78,3 +78,41 @@ async def test_get_by_id_not_found(auth_service: AuthService, mock_repo: AsyncMo
 
     with pytest.raises(NotFoundError, match="User not found"):
         await auth_service.get_by_id(user_id)
+
+
+@pytest.mark.asyncio
+async def test_register_with_role_teacher(auth_service: AuthService, mock_repo: AsyncMock, teacher_user: User):
+    mock_repo.get_by_email.return_value = None
+    mock_repo.create.return_value = teacher_user
+
+    result = await auth_service.register("teacher@example.com", "password123", "Teacher", role=UserRole.TEACHER)
+
+    payload = jwt.decode(result.access_token, "test-secret", algorithms=["HS256"])
+    assert payload["role"] == "teacher"
+    assert payload["is_verified"] is True
+    mock_repo.create.assert_called_once()
+    call_args = mock_repo.create.call_args
+    assert call_args[0][3] == UserRole.TEACHER
+
+
+@pytest.mark.asyncio
+async def test_register_default_role_student(auth_service: AuthService, mock_repo: AsyncMock, sample_user: User):
+    mock_repo.get_by_email.return_value = None
+    mock_repo.create.return_value = sample_user
+
+    result = await auth_service.register("student@example.com", "password123", "Student")
+
+    payload = jwt.decode(result.access_token, "test-secret", algorithms=["HS256"])
+    assert payload["role"] == "student"
+    assert payload["is_verified"] is False
+
+
+@pytest.mark.asyncio
+async def test_authenticate_returns_role_in_jwt(auth_service: AuthService, mock_repo: AsyncMock, teacher_user: User):
+    mock_repo.get_by_email.return_value = teacher_user
+
+    result = await auth_service.authenticate("teacher@example.com", "password123")
+
+    payload = jwt.decode(result.access_token, "test-secret", algorithms=["HS256"])
+    assert payload["role"] == "teacher"
+    assert payload["is_verified"] is True

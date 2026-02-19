@@ -1,4 +1,4 @@
-# Marketplace — Roadmap
+# EduPlatform — Roadmap
 
 > **Подход:** итеративное масштабирование. Запустить → нагрузить → найти bottleneck → оптимизировать → повторить.
 >
@@ -17,7 +17,7 @@ MVP (10K) → Оптимизация (100K) → Масштабирование (
 | MVP | до 10K | Работающий продукт, 2 сервиса, без оптимизаций | Locust показывает деградацию при ~50-100 RPS |
 | Оптимизация | 10K → 100K | Индексы, кэш, connection pooling, profiling | Стабильно держит 500 RPS, p99 < 200ms |
 | Масштабирование | 100K → 1M | Rust gateway, event bus, read replicas, Meilisearch | Стабильно держит 5K RPS, горизонтальное масштабирование |
-| Платформа | 1M → 10M | Sharding, multi-region, видео, live shopping | 50K+ RPS, multi-region, 99.99% uptime |
+| Платформа | 1M → 10M | Sharding, multi-region, видео, live streaming | 50K+ RPS, multi-region, 99.99% uptime |
 
 ---
 
@@ -28,10 +28,10 @@ MVP (10K) → Оптимизация (100K) → Масштабирование (
 | 01 | [Видение продукта](./01-PRODUCT-VISION.md) | Бизнес-метрики, user journeys, revenue streams |
 | 02 | [Архитектура](./02-ARCHITECTURE-PRINCIPLES.md) | ADR, принципы, выбор технологий |
 | 03 | [Инфраструктура](./03-INFRASTRUCTURE.md) | Масштабирование, стоимость, DevOps |
-| 04 | [Домены](./04-DOMAINS.md) | 11 bounded contexts, event matrix |
+| 04 | [Домены](./04-DOMAINS.md) | Bounded contexts, event matrix |
 | 05 | [Стратегия данных](./05-DATA-STRATEGY.md) | Polyglot persistence, sharding, CQRS |
 | 06 | [Безопасность](./06-SECURITY.md) | Threat model, compliance |
-| 07 | [Видео и медиа](./07-VIDEO-MEDIA.md) | Транскодирование, CDN, live shopping |
+| 07 | [Видео и медиа](./07-VIDEO-MEDIA.md) | Транскодирование, CDN, live streaming |
 | 08 | [Монорепа и DX](./08-MONOREPO-DX.md) | Build tools, CI/CD, testing strategy |
 | 09 | [Observability](./09-OBSERVABILITY.md) | SLO, метрики, алерты |
 | 10 | [Frontend](./10-FRONTEND.md) | Next.js, UI Kit, performance budgets |
@@ -49,28 +49,28 @@ MVP (10K) → Оптимизация (100K) → Масштабирование (
 | uv workspace (Python) | ✅ Done |
 | Docker Compose: dev (hot reload) + prod (monitoring) | ✅ Done |
 | Prometheus + Grafana (RPS, latency, errors) | ✅ Done |
-| Locust сценарии (browse, search, seller) | ✅ Done |
-| Seed script (50K users + 100K products) | ✅ Done |
+| Locust сценарии (student, search, teacher) | ✅ Done |
+| Seed script (50K users + 100K courses) | ✅ Done |
 
 ### Backend
 
 | Задача | Статус |
 |--------|--------|
-| Shared library: config, errors, security, database | ✅ Done |
-| Identity Service: register, login, GET /me (JWT) | ✅ Done |
-| Catalog Service: CRUD products, ILIKE search | ✅ Done |
-| Unit тесты: 28 тестов (identity 15 + catalog 13) | ✅ Done |
-| Database-per-service (identity-db, catalog-db) | ✅ Done |
+| Shared library: config, errors (ForbiddenError), security (JWT + extra_claims), database | ✅ Done |
+| Identity Service: register (с role), login, GET /me (role + is_verified) | ✅ Done |
+| Course Service: CRUD courses, ILIKE search, role-based POST | ✅ Done |
+| Unit тесты: identity + course | ✅ Done |
+| Database-per-service (identity-db, course-db) | ✅ Done |
 
 ### Frontend
 
 | Задача | Статус |
 |--------|--------|
 | Next.js 15 buyer app (Tailwind CSS 4) | ✅ Done |
-| Каталог с поиском | ✅ Done |
-| Регистрация / Логин | ✅ Done |
-| Карточка товара | ✅ Done |
-| Создание товара (auth required) | ✅ Done |
+| Каталог курсов с поиском | ✅ Done |
+| Регистрация с выбором роли / Логин | ✅ Done |
+| Детали курса | ✅ Done |
+| Создание курса (только verified teachers) | ✅ Done |
 
 ### MVP — осталось
 
@@ -78,7 +78,7 @@ MVP (10K) → Оптимизация (100K) → Масштабирование (
 |--------|--------|
 | Прогнать Locust, снять baseline метрики | 🔴 Not Started |
 | Зафиксировать первые bottleneck-и в Grafana | 🔴 Not Started |
-| Orders Service (Python): корзина, оформление заказа | 🔴 Not Started |
+| Enrollment Service: запись на курс | 🔴 Not Started |
 | Notifications: email подтверждения | 🔴 Not Started |
 
 ### Ожидаемые bottleneck-и на MVP
@@ -98,12 +98,12 @@ MVP (10K) → Оптимизация (100K) → Масштабирование (
 
 | Задача | Статус | Когда делать |
 |--------|--------|-------------|
-| pg_trgm + GIN индекс на products (title, description) | 🔴 | Когда search p99 > 300ms |
-| Redis кэширование: product list, product by id | 🔴 | Когда DB CPU > 70% на reads |
+| pg_trgm + GIN индекс на courses (title, description) | 🔴 | Когда search p99 > 300ms |
+| Redis кэширование: course list, course by id | 🔴 | Когда DB CPU > 70% на reads |
 | PgBouncer перед PostgreSQL | 🔴 | Когда connection pool exhaustion в логах |
 | uvicorn workers: 1 → 4 → auto | 🔴 | Когда CPU одного ядра = 100% |
 | Pagination: cursor-based вместо offset | 🔴 | Когда offset > 10000 тормозит |
-| Database indexes: email (unique), created_at, seller_id | 🔴 | Когда slow queries в логах |
+| Database indexes: email (unique), created_at, teacher_id | 🔴 | Когда slow queries в логах |
 | JWT refresh tokens | 🔴 | Когда пользователи жалуются на re-login |
 | Rate limiting на API | 🔴 | Когда видим abuse patterns |
 | Frontend: SSR для каталога, ISR для карточек | 🔴 | Когда First Load JS > бюджета |
@@ -121,12 +121,12 @@ MVP (10K) → Оптимизация (100K) → Масштабирование (
 |--------|--------|-------|
 | API Gateway (Rust/Axum) | 🔴 | Auth middleware, rate limiting, routing — единая точка входа |
 | Search Service (Rust) + Meilisearch | 🔴 | ILIKE не масштабируется, нужен полнотекстовый поиск |
-| NATS JetStream: event bus | 🔴 | Асинхронная связь между сервисами (user.created, order.placed) |
+| NATS JetStream: event bus | 🔴 | Асинхронная связь между сервисами (user.created, course.published) |
 | PostgreSQL read replicas | 🔴 | Разделение read/write нагрузки |
-| Orders Service (Python) | 🔴 | Корзина → заказ → оплата → подтверждение |
-| Payment integration (Stripe) | 🔴 | Escrow, payouts, refunds |
+| Enrollment Service (Python) | 🔴 | Запись на курс, прогресс |
+| Payment integration (Stripe) | 🔴 | Оплата курсов |
 | Notifications Service | 🔴 | Email, push, event-driven |
-| Seller Dashboard (Next.js) | 🔴 | Управление товарами, аналитика продаж |
+| Teacher Dashboard (Next.js) | 🔴 | Управление курсами, аналитика |
 | Protobuf контракты | 🔴 | Source of truth для межсервисного API |
 | CI/CD: GitHub Actions | 🔴 | Lint → test → build → deploy |
 | Kubernetes manifests | 🔴 | Auto-scaling, health checks, rolling deploys |
@@ -143,11 +143,11 @@ MVP (10K) → Оптимизация (100K) → Масштабирование (
 |--------|--------|-------|
 | PostgreSQL → Citus (sharding) | 🔴 | Одна БД не вытянет 10M users |
 | Multi-region active-active | 🔴 | Latency для юзеров в разных регионах |
-| Video platform: upload, transcode, stream | 🔴 | Video-first marketplace |
-| Live shopping / streaming | 🔴 | Real-time продажи |
-| Рекомендации (ML) | 🔴 | Персонализация каталога |
-| ClickHouse для аналитики | 🔴 | Real-time dashboards для продавцов |
-| Seller API + webhooks | 🔴 | Платформенная экосистема |
+| Video platform: upload, transcode, stream | 🔴 | Video-first learning |
+| Live streaming lessons | 🔴 | Real-time обучение |
+| Рекомендации (ML) | 🔴 | Персонализация каталога курсов |
+| ClickHouse для аналитики | 🔴 | Real-time dashboards для преподавателей |
+| Teacher API + webhooks | 🔴 | Платформенная экосистема |
 | Mobile PWA / native apps | 🔴 | 80% трафика — мобильный |
 | CDN: multi-CDN strategy | 🔴 | Видео и статика по всему миру |
 | Chaos engineering | 🔴 | Graceful degradation, circuit breakers |

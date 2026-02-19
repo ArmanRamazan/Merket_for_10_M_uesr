@@ -1,6 +1,7 @@
 FROM python:3.12-slim
 
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /bin/uv
+ADD https://astral.sh/uv/install.sh /tmp/uv-install.sh
+RUN sh /tmp/uv-install.sh && mv /root/.local/bin/uv /bin/uv && rm /tmp/uv-install.sh
 
 WORKDIR /app
 

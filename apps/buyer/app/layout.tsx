@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Marketplace",
-  description: "Marketplace for 10M users",
+  title: "EduPlatform",
+  description: "Online learning platform",
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

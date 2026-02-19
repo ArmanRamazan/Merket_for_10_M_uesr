@@ -14,6 +14,11 @@ class NotFoundError(AppError):
         super().__init__(message, status_code=404)
 
 
+class ForbiddenError(AppError):
+    def __init__(self, message: str = "Forbidden"):
+        super().__init__(message, status_code=403)
+
+
 class ConflictError(AppError):
     def __init__(self, message: str = "Conflict"):
         super().__init__(message, status_code=409)

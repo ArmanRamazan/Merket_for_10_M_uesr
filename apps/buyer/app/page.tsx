@@ -1,12 +1,12 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { catalog, type Product } from "@/lib/api";
+import { courses, type Course } from "@/lib/api";
 import { Header } from "@/components/Header";
-import { ProductCard } from "@/components/ProductCard";
+import { CourseCard } from "@/components/CourseCard";
 
 export default function HomePage() {
-  const [products, setProducts] = useState<Product[]>([]);
+  const [items, setItems] = useState<Course[]>([]);
   const [total, setTotal] = useState(0);
   const [query, setQuery] = useState("");
   const [search, setSearch] = useState("");
@@ -16,10 +16,10 @@ export default function HomePage() {
   useEffect(() => {
     setLoading(true);
     setError("");
-    catalog
+    courses
       .list({ q: search || undefined, limit: 20 })
       .then((res) => {
-        setProducts(res.items);
+        setItems(res.items);
         setTotal(res.total);
       })
       .catch((e) => setError(e.message))
@@ -40,7 +40,7 @@ export default function HomePage() {
             type="text"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Поиск товаров..."
+            placeholder="Поиск курсов..."
             className="flex-1 rounded-lg border border-gray-300 px-4 py-2 focus:border-blue-500 focus:outline-none"
           />
           <button
@@ -59,16 +59,16 @@ export default function HomePage() {
 
         {loading ? (
           <p className="text-center text-gray-400">Загрузка...</p>
-        ) : products.length === 0 ? (
-          <p className="text-center text-gray-400">Товары не найдены</p>
+        ) : items.length === 0 ? (
+          <p className="text-center text-gray-400">Курсы не найдены</p>
         ) : (
           <>
             <p className="mb-4 text-sm text-gray-500">
               Найдено: {total}
             </p>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {products.map((p) => (
-                <ProductCard key={p.id} product={p} />
+              {items.map((c) => (
+                <CourseCard key={c.id} course={c} />
               ))}
             </div>
           </>

@@ -1,5 +1,5 @@
 [project]
-name = "marketplace"
+name = "eduplatform"
 version = "0.1.0"
 requires-python = ">=3.12"
 
@@ -7,6 +7,6 @@ requires-python = ">=3.12"
 members = [
     "libs/py/common",
     "services/py/identity",
-    "services/py/catalog",
+    "services/py/course",
     "tools/seed",
 ]

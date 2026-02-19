@@ -38,8 +38,8 @@ export function useAuth() {
     setState({ token: res.access_token, user, loading: false });
   }, []);
 
-  const register = useCallback(async (email: string, password: string, name: string) => {
-    const res = await identity.register(email, password, name);
+  const register = useCallback(async (email: string, password: string, name: string, role: string = "student") => {
+    const res = await identity.register(email, password, name, role);
     localStorage.setItem("token", res.access_token);
     const user = await identity.me(res.access_token);
     setState({ token: res.access_token, user, loading: false });

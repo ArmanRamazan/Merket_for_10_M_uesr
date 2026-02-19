@@ -9,7 +9,7 @@ from fastapi import FastAPI
 
 from common.errors import register_error_handlers, ConflictError, NotFoundError
 from common.security import create_access_token
-from app.domain.user import User
+from app.domain.user import User, UserRole
 from app.routes.auth import router
 from app.services.auth_service import AuthService
 
@@ -54,6 +54,21 @@ def sample_user(user_id):
         email="test@example.com",
         password_hash=_bcrypt.hashpw(b"password123", _bcrypt.gensalt()).decode(),
         name="Test User",
+        role=UserRole.STUDENT,
+        is_verified=False,
+        created_at=datetime.now(timezone.utc),
+    )
+
+
+@pytest.fixture
+def teacher_user(user_id):
+    return User(
+        id=user_id,
+        email="teacher@example.com",
+        password_hash=_bcrypt.hashpw(b"password123", _bcrypt.gensalt()).decode(),
+        name="Test Teacher",
+        role=UserRole.TEACHER,
+        is_verified=True,
         created_at=datetime.now(timezone.utc),
     )
 
@@ -78,6 +93,24 @@ async def test_register_returns_token(client, mock_service):
     body = resp.json()
     assert body["access_token"] == "fake-jwt-token"
     assert body["token_type"] == "bearer"
+
+
+@pytest.mark.asyncio
+async def test_register_with_role(client, mock_service):
+    from app.domain.user import TokenPair
+    mock_service.register.return_value = TokenPair(access_token="teacher-token")
+
+    resp = await client.post("/register", json={
+        "email": "teacher@example.com",
+        "password": "password123",
+        "name": "Teacher",
+        "role": "teacher",
+    })
+
+    assert resp.status_code == 200
+    mock_service.register.assert_called_once()
+    call_kwargs = mock_service.register.call_args
+    assert call_kwargs[0][3] == UserRole.TEACHER
 
 
 @pytest.mark.asyncio
@@ -132,7 +165,7 @@ async def test_login_wrong_creds_returns_404(client, mock_service):
 
 
 @pytest.mark.asyncio
-async def test_me_returns_user(client, mock_service, sample_user, auth_token):
+async def test_me_returns_user_with_role(client, mock_service, sample_user, auth_token):
     mock_service.get_by_id.return_value = sample_user
 
     resp = await client.get("/me", headers={"Authorization": f"Bearer {auth_token}"})
@@ -141,6 +174,20 @@ async def test_me_returns_user(client, mock_service, sample_user, auth_token):
     body = resp.json()
     assert body["email"] == "test@example.com"
     assert body["name"] == "Test User"
+    assert body["role"] == "student"
+    assert body["is_verified"] is False
+
+
+@pytest.mark.asyncio
+async def test_me_teacher_returns_role(client, mock_service, teacher_user, auth_token):
+    mock_service.get_by_id.return_value = teacher_user
+
+    resp = await client.get("/me", headers={"Authorization": f"Bearer {auth_token}"})
+
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["role"] == "teacher"
+    assert body["is_verified"] is True
 
 
 @pytest.mark.asyncio

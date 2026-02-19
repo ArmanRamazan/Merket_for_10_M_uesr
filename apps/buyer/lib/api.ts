@@ -1,5 +1,5 @@
 const IDENTITY_URL = "/api/identity";
-const CATALOG_URL = "/api/catalog";
+const COURSE_URL = "/api/course";
 
 export interface TokenResponse {
   access_token: string;
@@ -10,21 +10,25 @@ export interface User {
   id: string;
   email: string;
   name: string;
+  role: "student" | "teacher";
+  is_verified: boolean;
   created_at: string;
 }
 
-export interface Product {
+export interface Course {
   id: string;
-  seller_id: string;
+  teacher_id: string;
   title: string;
   description: string;
-  price: number;
-  stock: number;
+  is_free: boolean;
+  price: number | null;
+  duration_minutes: number;
+  level: "beginner" | "intermediate" | "advanced";
   created_at: string;
 }
 
-export interface ProductList {
-  items: Product[];
+export interface CourseList {
+  items: Course[];
   total: number;
 }
 
@@ -42,11 +46,11 @@ function authHeaders(token: string): HeadersInit {
 }
 
 export const identity = {
-  register(email: string, password: string, name: string) {
+  register(email: string, password: string, name: string, role: string = "student") {
     return request<TokenResponse>(`${IDENTITY_URL}/register`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ email, password, name }),
+      body: JSON.stringify({ email, password, name, role }),
     });
   },
   login(email: string, password: string) {
@@ -63,20 +67,27 @@ export const identity = {
   },
 };
 
-export const catalog = {
+export const courses = {
   list(params?: { q?: string; limit?: number; offset?: number }) {
     const sp = new URLSearchParams();
     if (params?.q) sp.set("q", params.q);
     if (params?.limit) sp.set("limit", String(params.limit));
     if (params?.offset) sp.set("offset", String(params.offset));
     const qs = sp.toString();
-    return request<ProductList>(`${CATALOG_URL}/products${qs ? `?${qs}` : ""}`);
+    return request<CourseList>(`${COURSE_URL}/courses${qs ? `?${qs}` : ""}`);
   },
   get(id: string) {
-    return request<Product>(`${CATALOG_URL}/products/${id}`);
+    return request<Course>(`${COURSE_URL}/courses/${id}`);
   },
-  create(token: string, data: { title: string; description: string; price: number; stock: number }) {
-    return request<Product>(`${CATALOG_URL}/products`, {
+  create(token: string, data: {
+    title: string;
+    description: string;
+    is_free: boolean;
+    price?: number;
+    duration_minutes: number;
+    level: string;
+  }) {
+    return request<Course>(`${COURSE_URL}/courses`, {
       method: "POST",
       headers: authHeaders(token),
       body: JSON.stringify(data),

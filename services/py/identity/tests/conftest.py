@@ -10,7 +10,7 @@ from uuid import uuid4
 
 import bcrypt
 
-from app.domain.user import User
+from app.domain.user import User, UserRole
 from app.repositories.user_repo import UserRepository
 from app.services.auth_service import AuthService
 
@@ -27,6 +27,21 @@ def sample_user(user_id):
         email="test@example.com",
         password_hash=bcrypt.hashpw(b"password123", bcrypt.gensalt()).decode(),
         name="Test User",
+        role=UserRole.STUDENT,
+        is_verified=False,
+        created_at=datetime.now(timezone.utc),
+    )
+
+
+@pytest.fixture
+def teacher_user(user_id):
+    return User(
+        id=user_id,
+        email="teacher@example.com",
+        password_hash=bcrypt.hashpw(b"password123", bcrypt.gensalt()).decode(),
+        name="Test Teacher",
+        role=UserRole.TEACHER,
+        is_verified=True,
         created_at=datetime.now(timezone.utc),
     )
 

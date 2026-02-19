@@ -12,6 +12,7 @@ export default function RegisterPage() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [role, setRole] = useState("student");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
@@ -20,7 +21,7 @@ export default function RegisterPage() {
     setError("");
     setSubmitting(true);
     try {
-      await register(email, password, name);
+      await register(email, password, name, role);
       router.push("/");
     } catch (err) {
       setError(err instanceof Error ? err.message : "Registration failed");
@@ -67,6 +68,33 @@ export default function RegisterPage() {
             minLength={6}
             className="w-full rounded-lg border border-gray-300 px-4 py-2 focus:border-blue-500 focus:outline-none"
           />
+
+          <fieldset className="space-y-2">
+            <legend className="text-sm font-medium text-gray-700">Роль</legend>
+            <label className="flex items-center gap-2">
+              <input
+                type="radio"
+                name="role"
+                value="student"
+                checked={role === "student"}
+                onChange={(e) => setRole(e.target.value)}
+                className="text-blue-600"
+              />
+              <span className="text-sm">Студент</span>
+            </label>
+            <label className="flex items-center gap-2">
+              <input
+                type="radio"
+                name="role"
+                value="teacher"
+                checked={role === "teacher"}
+                onChange={(e) => setRole(e.target.value)}
+                className="text-blue-600"
+              />
+              <span className="text-sm">Преподаватель</span>
+            </label>
+          </fieldset>
+
           <button
             type="submit"
             disabled={submitting}

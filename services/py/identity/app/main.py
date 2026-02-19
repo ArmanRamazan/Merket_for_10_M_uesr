@@ -32,6 +32,8 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     async with _pool.acquire() as conn:
         with open("migrations/001_users.sql") as f:
             await conn.execute(f.read())
+        with open("migrations/002_add_role.sql") as f:
+            await conn.execute(f.read())
 
     repo = UserRepository(_pool)
     _auth_service = AuthService(

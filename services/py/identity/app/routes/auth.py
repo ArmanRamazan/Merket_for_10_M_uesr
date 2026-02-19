@@ -36,7 +36,7 @@ async def register(
     body: UserCreate,
     service: Annotated[AuthService, Depends(_get_auth_service)],
 ) -> TokenPair:
-    return await service.register(body.email, body.password, body.name)
+    return await service.register(body.email, body.password, body.name, body.role)
 
 
 @router.post("/login", response_model=TokenPair)
@@ -57,5 +57,7 @@ async def me(
         id=user.id,
         email=user.email,
         name=user.name,
+        role=user.role,
+        is_verified=user.is_verified,
         created_at=user.created_at,
     )

@@ -1,6 +1,6 @@
 # Phase 0 — Foundation (MVP на 10K пользователей)
 
-> **Цель:** запустить работающий продукт. Identity + Catalog + Frontend. Нагрузить Locust-ом, увидеть первые bottleneck-и, зафиксировать baseline.
+> **Цель:** запустить работающую учебную платформу. Identity + Course + Frontend. Нагрузить Locust-ом, увидеть первые bottleneck-и, зафиксировать baseline.
 >
 > **Намеренные ограничения:** нет кэша, нет индексов на поиск, маленький connection pool. Это не баги — это будущие точки оптимизации.
 
@@ -11,12 +11,12 @@
 | # | Задача | Статус |
 |---|--------|--------|
 | 0.1.1 | uv workspace (Python монорепа) | ✅ Done |
-| 0.1.2 | Shared library: config (BaseSettings), errors, security (JWT), database (asyncpg pool) | ✅ Done |
+| 0.1.2 | Shared library: config (BaseSettings), errors (ForbiddenError), security (JWT + extra_claims), database (asyncpg pool) | ✅ Done |
 | 0.1.3 | Docker Compose dev: hot reload, volume mounts | ✅ Done |
 | 0.1.4 | Docker Compose prod: multi-worker, restart policies, env vars | ✅ Done |
 | 0.1.5 | Prometheus + Grafana: auto-provision, dashboard (RPS, latency p50/p95/p99, errors) | ✅ Done |
-| 0.1.6 | Seed script: 50K users + 100K products (asyncpg COPY) | ✅ Done |
-| 0.1.7 | Locust: BrowsingUser (70%), SearchUser (20%), SellerUser (10%) | ✅ Done |
+| 0.1.6 | Seed script: 50K users (students + teachers) + 100K courses (asyncpg COPY) | ✅ Done |
+| 0.1.7 | Locust: StudentUser (70%), SearchUser (20%), TeacherUser (10%) | ✅ Done |
 
 ---
 
@@ -24,13 +24,13 @@
 
 | # | Задача | Статус |
 |---|--------|--------|
-| 0.2.1 | **Identity Service** — POST /register, POST /login, GET /me | ✅ Done |
-| 0.2.2 | **Catalog Service** — GET /products (list + ILIKE search), GET /products/:id, POST /products | ✅ Done |
-| 0.2.3 | Database-per-service: identity-db (port 5433), catalog-db (port 5434) | ✅ Done |
-| 0.2.4 | SQL миграции при старте (CREATE TABLE IF NOT EXISTS) | ✅ Done |
-| 0.2.5 | JWT shared secret — оба сервиса валидируют токен сами | ✅ Done |
+| 0.2.1 | **Identity Service** — POST /register (с role), POST /login, GET /me (role + is_verified) | ✅ Done |
+| 0.2.2 | **Course Service** — GET /courses (list + ILIKE search), GET /courses/:id, POST /courses (role-based access) | ✅ Done |
+| 0.2.3 | Database-per-service: identity-db (port 5433), course-db (port 5434) | ✅ Done |
+| 0.2.4 | SQL миграции при старте (CREATE TABLE IF NOT EXISTS, ENUM types) | ✅ Done |
+| 0.2.5 | JWT shared secret — role и is_verified в claims, оба сервиса валидируют токен сами | ✅ Done |
 | 0.2.6 | prometheus-fastapi-instrumentator — автоматические метрики | ✅ Done |
-| 0.2.7 | Unit тесты: 15 (identity) + 13 (catalog) = 28 тестов | ✅ Done |
+| 0.2.7 | Unit тесты: identity + course | ✅ Done |
 
 ---
 
@@ -39,11 +39,12 @@
 | # | Задача | Статус |
 |---|--------|--------|
 | 0.3.1 | Next.js 15 buyer app (Tailwind CSS 4, TypeScript strict) | ✅ Done |
-| 0.3.2 | Каталог товаров с поиском | ✅ Done |
-| 0.3.3 | Карточка товара | ✅ Done |
-| 0.3.4 | Регистрация / Логин (JWT в localStorage) | ✅ Done |
-| 0.3.5 | Создание товара (auth required) | ✅ Done |
+| 0.3.2 | Каталог курсов с поиском | ✅ Done |
+| 0.3.3 | Детали курса (уровень, цена, длительность) | ✅ Done |
+| 0.3.4 | Регистрация с выбором роли (студент/преподаватель) / Логин (JWT в localStorage) | ✅ Done |
+| 0.3.5 | Создание курса (только для verified teachers) | ✅ Done |
 | 0.3.6 | API proxy через Next.js rewrites | ✅ Done |
+| 0.3.7 | Role badge в Header | ✅ Done |
 
 ---
 
@@ -52,7 +53,7 @@
 | # | Задача | Статус |
 |---|--------|--------|
 | 0.4.1 | Поднять prod stack (docker-compose.prod.yml) | 🔴 Not Started |
-| 0.4.2 | Засеять 50K users + 100K products | 🔴 Not Started |
+| 0.4.2 | Засеять 50K users + 100K courses | 🔴 Not Started |
 | 0.4.3 | Запустить Locust: 100 users, ramp 10/s, 5 минут | 🔴 Not Started |
 | 0.4.4 | Зафиксировать baseline в Grafana (screenshots) | 🔴 Not Started |
 | 0.4.5 | Найти первый bottleneck (ожидание: ILIKE search) | 🔴 Not Started |
@@ -63,9 +64,9 @@
 
 | # | Задача | Статус |
 |---|--------|--------|
-| 0.5.1 | Orders Service: корзина, создание заказа | 🔴 Not Started |
-| 0.5.2 | Простой checkout flow (без реальных платежей) | 🔴 Not Started |
-| 0.5.3 | Email уведомления (регистрация, заказ) | 🔴 Not Started |
+| 0.5.1 | Enrollment Service: запись на курс | 🔴 Not Started |
+| 0.5.2 | Простой payment flow (для платных курсов) | 🔴 Not Started |
+| 0.5.3 | Email уведомления (регистрация, запись на курс) | 🔴 Not Started |
 
 ---
 
@@ -82,12 +83,12 @@
               ┌─────┤            ├─────┐
               │     │            │     │
         ┌─────▼──┐  │         ┌──▼─────┐
-        │Identity│  │         │Catalog │
+        │Identity│  │         │Course  │
         │ :8001  │  │         │ :8002  │
         └───┬────┘  │         └───┬────┘
             │       │             │
        ┌────▼────┐  │        ┌───▼─────┐
-       │identity │  │        │catalog  │
+       │identity │  │        │course   │
        │   db    │  │        │   db    │
        │  :5433  │  │        │  :5434  │
        └─────────┘  │        └─────────┘
@@ -104,13 +105,14 @@
 |-------------|---------------|-----------|-------------|
 | ~50 RPS search | ILIKE full scan на 100K rows | p99 > 500ms в Grafana | pg_trgm + GIN index |
 | ~200 RPS | asyncpg pool = 5 connections | 503 errors spike | Pool 20 + PgBouncer |
-| ~500 RPS | Каждый запрос идёт в БД | DB CPU > 80% | Redis кэш (product list, get by id) |
+| ~500 RPS | Каждый запрос идёт в БД | DB CPU > 80% | Redis кэш (course list, get by id) |
 | ~1000 RPS | Python GIL, 1 worker | CPU 100% на 1 core | uvicorn --workers 4 |
 
 ## Критерии завершения Phase 0
 
-- [x] Buyer может зарегистрироваться, найти товар, посмотреть карточку
-- [x] Seller может зарегистрироваться и добавить товар
+- [x] Студент может зарегистрироваться, найти курс, посмотреть карточку
+- [x] Преподаватель (verified) может создать курс
+- [x] Студент НЕ может создать курс (403)
 - [x] Два сервиса с отдельными БД
 - [x] Unit тесты проходят
 - [x] Мониторинг (Prometheus + Grafana) настроен
