@@ -17,6 +17,7 @@
 | 07 | [Видео-лендинг и медиа-платформа](./07-VIDEO-MEDIA.md) | Architect / Principal |
 | 08 | [Монорепа и Developer Experience](./08-MONOREPO-DX.md) | Principal / Platform |
 | 09 | [Наблюдаемость и SLO](./09-OBSERVABILITY.md) | Architect / SRE |
+| 10 | [Frontend Architecture](./10-FRONTEND.md) | Architect / Frontend Lead |
 
 ---
 

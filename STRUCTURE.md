@@ -35,6 +35,15 @@ marketplace/
 │       ├── video-processor/       #   Upload, transcode, stream
 │       └── payment-engine/        #   Транзакции, escrow, payouts
 │
+├── apps/                          # Frontend приложения (Next.js)
+│   ├── buyer/                     #   Покупательский сайт (SSR/SSG/Client)
+│   └── seller/                    #   Дашборд продавца (Client-side)
+│
+├── packages/                      # Shared frontend пакеты
+│   ├── ui/                        #   UI Kit: Radix + Tailwind компоненты
+│   ├── api-client/                #   Typed API client (codegen из OpenAPI)
+│   └── shared/                    #   Validators, formatters, constants
+│
 ├── deploy/                        # Infrastructure
 │   ├── docker/                    #   Dockerfiles per service
 │   └── k8s/base/                  #   K8s manifests
@@ -59,6 +68,9 @@ marketplace/
 | Каждый Python сервис: `routes → services → domain → repositories` | **SRP + DIP** | Clean Architecture слои. Domain не знает про HTTP и БД |
 | `events/v1/` в proto | **OCP** | Новые события добавляются без изменения существующих сервисов |
 | `deploy/` отдельно от сервисов | **SRP** | Инфраструктура не смешивается с бизнес-логикой |
+| `apps/` для фронтенда, `packages/` для shared | **SRP** | Buyer и Seller — разные приложения с разными требованиями к рендерингу и аудиториями |
+| `packages/ui/` отдельно | **DRY + OCP** | Единый UI Kit для всех приложений. Новый app использует готовые компоненты |
+| `packages/api-client/` с codegen | **DIP** | Фронтенд зависит от сгенерированного контракта, не от деталей реализации API |
 
 ### Чего НЕТ и почему (YAGNI)
 
@@ -72,7 +84,7 @@ marketplace/
 | `workers/` директория | Когда вырастет | Пока background jobs живут внутри сервисов. Выделим когда нужна независимая масштабируемость |
 | `libs/py/testing/` | Когда будет boilerplate | Пока fixtures живут в `tests/` каждого сервиса. Выделим когда увидим дублирование |
 | `terraform/` | Phase 1 | Пока K8s manifests хватает. IaC когда будет multi-env |
-| Отдельный `frontend/` | Зависит от решения | Frontend может быть в этой репе или отдельной — решить на Phase 0 |
+| `apps/admin/` | Phase 1 | Admin panel когда появится модерация и финансовый контроль |
 
 ---
 
@@ -133,9 +145,68 @@ services/rs/{service}/
 
 ---
 
+## Внутренняя структура Frontend приложения
+
+```
+apps/{app}/
+├── app/                   # Next.js App Router
+│   ├── (group)/           #   Route groups (без влияния на URL)
+│   │   ├── page.tsx       #     Server Component по умолчанию
+│   │   ├── layout.tsx     #     Layout для группы
+│   │   ├── loading.tsx    #     Streaming skeleton
+│   │   └── error.tsx      #     Error boundary
+│   ├── layout.tsx         #   Root layout
+│   └── globals.css        #   Tailwind directives
+├── components/            #   Компоненты специфичные для этого app
+│   └──                    #     Используют packages/ui как основу
+├── hooks/                 #   Custom React hooks
+├── lib/                   #   API вызовы, утилиты, конфиг
+├── public/                #   Статика (favicon, robots.txt)
+├── next.config.ts
+├── tailwind.config.ts
+├── tsconfig.json
+└── package.json
+```
+
+**Правила:**
+- `app/` — только page.tsx, layout.tsx, loading.tsx, error.tsx. Без бизнес-логики
+- `components/` — UI специфичный для приложения. Общее — в `packages/ui/`
+- `hooks/` — data fetching, form logic, local state. Не дублировать между apps — выносить в `packages/shared/`
+- `lib/` — обертки над `packages/api-client/`, конфиг, auth helpers
+- Server Components по умолчанию. `"use client"` только когда нужен interactivity
+
+## Shared UI Kit (`packages/ui/`)
+
+```
+packages/ui/
+├── components/
+│   ├── button.tsx         # Каждый компонент — один файл
+│   ├── input.tsx          # Экспорт через index.ts
+│   ├── modal.tsx
+│   ├── video-player.tsx
+│   └── ...
+├── tokens/
+│   ├── colors.ts          # Design tokens как JS объекты
+│   ├── spacing.ts
+│   └── typography.ts
+├── index.ts               # Public API пакета
+├── tailwind.config.ts     # Shared Tailwind preset
+├── tsconfig.json
+└── package.json
+```
+
+**Правила:**
+- Каждый компонент — самодостаточный, без внешних зависимостей кроме Radix и Tailwind
+- Props типизированы, дефолты указаны, forwardRef где нужен DOM доступ
+- Не содержит бизнес-логику. Только UI: рендер, стили, accessibility, анимации
+
+---
+
 ## Принципы расширения
 
 1. **Новый сервис** — создай директорию в `services/py/` или `services/rs/`, добавь proto контракт
 2. **Новый event** — определи в `proto/events/v1/`, сгенерируй код, подпишись в нужном сервисе
 3. **Shared код** — сначала скопируй. Если дублируется в 3+ местах — вынеси в `libs/`
 4. **Новый worker** — пока живет внутри сервиса. Выделяй когда нужна независимая масштабируемость
+5. **Новый frontend app** — создай директорию в `apps/`, переиспользуй `packages/ui/` и `packages/api-client/`
+6. **Новый UI компонент** — если используется в 1 app → в `apps/{app}/components/`. Если в 2+ → в `packages/ui/`
