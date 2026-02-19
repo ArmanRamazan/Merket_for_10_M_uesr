@@ -1,0 +1,101 @@
+# DEV: docker compose -f docker-compose.dev.yml up
+# Hot reload, volume mounts, debug ports exposed, no monitoring overhead
+services:
+  identity-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: identity
+      POSTGRES_USER: identity
+      POSTGRES_PASSWORD: identity
+    ports:
+      - "5433:5432"
+    volumes:
+      - identity-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U identity"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  catalog-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: catalog
+      POSTGRES_USER: catalog
+      POSTGRES_PASSWORD: catalog
+    ports:
+      - "5434:5432"
+    volumes:
+      - catalog-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U catalog"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  identity:
+    build:
+      context: .
+      dockerfile: deploy/docker/identity.Dockerfile
+    ports:
+      - "8001:8001"
+    environment:
+      DATABASE_URL: postgresql://identity:identity@identity-db:5432/identity
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: dev-secret-key
+    volumes:
+      - ./services/py/identity/app:/app/app
+      - ./services/py/identity/migrations:/app/migrations
+      - ./libs/py/common/common:/libs/common/common
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload
+    depends_on:
+      identity-db:
+        condition: service_healthy
+
+  catalog:
+    build:
+      context: .
+      dockerfile: deploy/docker/catalog.Dockerfile
+    ports:
+      - "8002:8002"
+    environment:
+      DATABASE_URL: postgresql://catalog:catalog@catalog-db:5432/catalog
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: dev-secret-key
+    volumes:
+      - ./services/py/catalog/app:/app/app
+      - ./services/py/catalog/migrations:/app/migrations
+      - ./libs/py/common/common:/libs/common/common
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8002 --reload
+    depends_on:
+      catalog-db:
+        condition: service_healthy
+
+  seed:
+    build:
+      context: .
+      dockerfile: deploy/docker/seed.Dockerfile
+    environment:
+      IDENTITY_DB_URL: postgresql://identity:identity@identity-db:5432/identity
+      CATALOG_DB_URL: postgresql://catalog:catalog@catalog-db:5432/catalog
+    depends_on:
+      identity:
+        condition: service_started
+      catalog:
+        condition: service_started
+    profiles:
+      - seed
+
+volumes:
+  identity-db-data:
+  catalog-db-data:
