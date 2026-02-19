@@ -35,6 +35,8 @@ downloads/
 eggs/
 .eggs/
 lib/
+!apps/**/lib/
+!services/**/lib/
 lib64/
 parts/
 sdist/
