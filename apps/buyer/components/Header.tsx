@@ -27,6 +27,12 @@ export function Header() {
             <span className="text-sm text-gray-400">...</span>
           ) : user ? (
             <>
+              <Link href="/enrollments" className="text-sm hover:underline">
+                Мои курсы
+              </Link>
+              <Link href="/notifications" className="text-sm hover:underline">
+                Уведомления
+              </Link>
               {user.role === "teacher" && user.is_verified && (
                 <Link href="/courses/new" className="text-sm hover:underline">
                   Создать курс

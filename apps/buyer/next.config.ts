@@ -11,6 +11,18 @@ const nextConfig: NextConfig = {
         source: "/api/course/:path*",
         destination: "http://localhost:8002/:path*",
       },
+      {
+        source: "/api/enrollment/:path*",
+        destination: "http://localhost:8003/:path*",
+      },
+      {
+        source: "/api/payment/:path*",
+        destination: "http://localhost:8004/:path*",
+      },
+      {
+        source: "/api/notification/:path*",
+        destination: "http://localhost:8005/:path*",
+      },
     ];
   },
 };
