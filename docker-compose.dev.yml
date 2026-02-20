@@ -33,6 +33,54 @@ services:
       timeout: 3s
       retries: 5
 
+  enrollment-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: enrollment
+      POSTGRES_USER: enrollment
+      POSTGRES_PASSWORD: enrollment
+    ports:
+      - "5435:5432"
+    volumes:
+      - enrollment-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U enrollment"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  payment-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: payment
+      POSTGRES_USER: payment
+      POSTGRES_PASSWORD: payment
+    ports:
+      - "5436:5432"
+    volumes:
+      - payment-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U payment"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  notification-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: notification
+      POSTGRES_USER: notification
+      POSTGRES_PASSWORD: notification
+    ports:
+      - "5437:5432"
+    volumes:
+      - notification-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U notification"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
   redis:
     image: redis:7-alpine
     ports:
@@ -81,6 +129,63 @@ services:
       course-db:
         condition: service_healthy
 
+  enrollment:
+    build:
+      context: .
+      dockerfile: deploy/docker/enrollment.Dockerfile
+    ports:
+      - "8003:8003"
+    environment:
+      DATABASE_URL: postgresql://enrollment:enrollment@enrollment-db:5432/enrollment
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: dev-secret-key
+    volumes:
+      - ./services/py/enrollment/app:/app/app
+      - ./services/py/enrollment/migrations:/app/migrations
+      - ./libs/py/common/common:/libs/common/common
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8003 --reload
+    depends_on:
+      enrollment-db:
+        condition: service_healthy
+
+  payment:
+    build:
+      context: .
+      dockerfile: deploy/docker/payment.Dockerfile
+    ports:
+      - "8004:8004"
+    environment:
+      DATABASE_URL: postgresql://payment:payment@payment-db:5432/payment
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: dev-secret-key
+    volumes:
+      - ./services/py/payment/app:/app/app
+      - ./services/py/payment/migrations:/app/migrations
+      - ./libs/py/common/common:/libs/common/common
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8004 --reload
+    depends_on:
+      payment-db:
+        condition: service_healthy
+
+  notification:
+    build:
+      context: .
+      dockerfile: deploy/docker/notification.Dockerfile
+    ports:
+      - "8005:8005"
+    environment:
+      DATABASE_URL: postgresql://notification:notification@notification-db:5432/notification
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: dev-secret-key
+    volumes:
+      - ./services/py/notification/app:/app/app
+      - ./services/py/notification/migrations:/app/migrations
+      - ./libs/py/common/common:/libs/common/common
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8005 --reload
+    depends_on:
+      notification-db:
+        condition: service_healthy
+
   seed:
     build:
       context: .
@@ -88,10 +193,19 @@ services:
     environment:
       IDENTITY_DB_URL: postgresql://identity:identity@identity-db:5432/identity
       COURSE_DB_URL: postgresql://course:course@course-db:5432/course
+      ENROLLMENT_DB_URL: postgresql://enrollment:enrollment@enrollment-db:5432/enrollment
+      PAYMENT_DB_URL: postgresql://payment:payment@payment-db:5432/payment
+      NOTIFICATION_DB_URL: postgresql://notification:notification@notification-db:5432/notification
     depends_on:
       identity:
         condition: service_started
       course:
+        condition: service_started
+      enrollment:
+        condition: service_started
+      payment:
+        condition: service_started
+      notification:
         condition: service_started
     profiles:
       - seed
@@ -99,3 +213,6 @@ services:
 volumes:
   identity-db-data:
   course-db-data:
+  enrollment-db-data:
+  payment-db-data:
+  notification-db-data:

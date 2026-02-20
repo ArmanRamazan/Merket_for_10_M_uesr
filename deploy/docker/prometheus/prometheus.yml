@@ -10,3 +10,15 @@ scrape_configs:
   - job_name: course
     static_configs:
       - targets: ["course:8002"]
+
+  - job_name: enrollment
+    static_configs:
+      - targets: ["enrollment:8003"]
+
+  - job_name: payment
+    static_configs:
+      - targets: ["payment:8004"]
+
+  - job_name: notification
+    static_configs:
+      - targets: ["notification:8005"]

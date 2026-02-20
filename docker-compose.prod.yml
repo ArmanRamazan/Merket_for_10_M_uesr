@@ -35,6 +35,57 @@ services:
       retries: 5
     restart: unless-stopped
 
+  enrollment-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: enrollment
+      POSTGRES_USER: enrollment
+      POSTGRES_PASSWORD: ${ENROLLMENT_DB_PASSWORD:-enrollment}
+    ports:
+      - "5435:5432"
+    volumes:
+      - enrollment-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U enrollment"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  payment-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: payment
+      POSTGRES_USER: payment
+      POSTGRES_PASSWORD: ${PAYMENT_DB_PASSWORD:-payment}
+    ports:
+      - "5436:5432"
+    volumes:
+      - payment-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U payment"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  notification-db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: notification
+      POSTGRES_USER: notification
+      POSTGRES_PASSWORD: ${NOTIFICATION_DB_PASSWORD:-notification}
+    ports:
+      - "5437:5432"
+    volumes:
+      - notification-db-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U notification"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
   redis:
     image: redis:7-alpine
     ports:
@@ -90,6 +141,72 @@ services:
       start_period: 15s
     restart: unless-stopped
 
+  enrollment:
+    build:
+      context: .
+      dockerfile: deploy/docker/enrollment.Dockerfile
+    ports:
+      - "8003:8003"
+    environment:
+      DATABASE_URL: postgresql://enrollment:${ENROLLMENT_DB_PASSWORD:-enrollment}@enrollment-db:5432/enrollment
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8003 --workers 4
+    depends_on:
+      enrollment-db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8003/docs')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+
+  payment:
+    build:
+      context: .
+      dockerfile: deploy/docker/payment.Dockerfile
+    ports:
+      - "8004:8004"
+    environment:
+      DATABASE_URL: postgresql://payment:${PAYMENT_DB_PASSWORD:-payment}@payment-db:5432/payment
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8004 --workers 4
+    depends_on:
+      payment-db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8004/docs')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+
+  notification:
+    build:
+      context: .
+      dockerfile: deploy/docker/notification.Dockerfile
+    ports:
+      - "8005:8005"
+    environment:
+      DATABASE_URL: postgresql://notification:${NOTIFICATION_DB_PASSWORD:-notification}@notification-db:5432/notification
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8005 --workers 4
+    depends_on:
+      notification-db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8005/docs')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    restart: unless-stopped
+
   seed:
     build:
       context: .
@@ -97,10 +214,19 @@ services:
     environment:
       IDENTITY_DB_URL: postgresql://identity:${IDENTITY_DB_PASSWORD:-identity}@identity-db:5432/identity
       COURSE_DB_URL: postgresql://course:${COURSE_DB_PASSWORD:-course}@course-db:5432/course
+      ENROLLMENT_DB_URL: postgresql://enrollment:${ENROLLMENT_DB_PASSWORD:-enrollment}@enrollment-db:5432/enrollment
+      PAYMENT_DB_URL: postgresql://payment:${PAYMENT_DB_PASSWORD:-payment}@payment-db:5432/payment
+      NOTIFICATION_DB_URL: postgresql://notification:${NOTIFICATION_DB_PASSWORD:-notification}@notification-db:5432/notification
     depends_on:
       identity:
         condition: service_healthy
       course:
+        condition: service_healthy
+      enrollment:
+        condition: service_healthy
+      payment:
+        condition: service_healthy
+      notification:
         condition: service_healthy
     profiles:
       - seed
@@ -115,6 +241,9 @@ services:
     depends_on:
       - identity
       - course
+      - enrollment
+      - payment
+      - notification
     restart: unless-stopped
 
   grafana:
@@ -142,10 +271,16 @@ services:
     environment:
       IDENTITY_URL: http://identity:8001
       COURSE_URL: http://course:8002
+      ENROLLMENT_URL: http://enrollment:8003
+      PAYMENT_URL: http://payment:8004
     depends_on:
       identity:
         condition: service_healthy
       course:
+        condition: service_healthy
+      enrollment:
+        condition: service_healthy
+      payment:
         condition: service_healthy
     profiles:
       - loadtest
@@ -153,5 +288,8 @@ services:
 volumes:
   identity-db-data:
   course-db-data:
+  enrollment-db-data:
+  payment-db-data:
+  notification-db-data:
   prometheus-data:
   grafana-data:

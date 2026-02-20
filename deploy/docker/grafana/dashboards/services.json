@@ -13,7 +13,7 @@
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         {
-          "expr": "rate(http_requests_total{job=~\"identity|course\"}[1m])",
+          "expr": "rate(http_requests_total{job=~\"identity|course|enrollment|payment|notification\"}[1m])",
           "legendFormat": "{{job}} {{method}} {{handler}} {{status}}"
         }
       ],
@@ -32,7 +32,7 @@
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         {
-          "expr": "rate(http_requests_total{job=~\"identity|course\", status=~\"5..\"}[1m])",
+          "expr": "rate(http_requests_total{job=~\"identity|course|enrollment|payment|notification\", status=~\"5..\"}[1m])",
           "legendFormat": "{{job}} {{status}}"
         }
       ],
@@ -52,7 +52,7 @@
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         {
-          "expr": "histogram_quantile(0.50, rate(http_request_duration_seconds_bucket{job=~\"identity|course\"}[1m]))",
+          "expr": "histogram_quantile(0.50, rate(http_request_duration_seconds_bucket{job=~\"identity|course|enrollment|payment|notification\"}[1m]))",
           "legendFormat": "{{job}} {{handler}}"
         }
       ],
@@ -71,7 +71,7 @@
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         {
-          "expr": "histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{job=~\"identity|course\"}[1m]))",
+          "expr": "histogram_quantile(0.95, rate(http_request_duration_seconds_bucket{job=~\"identity|course|enrollment|payment|notification\"}[1m]))",
           "legendFormat": "{{job}} {{handler}}"
         }
       ],
@@ -91,7 +91,7 @@
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         {
-          "expr": "histogram_quantile(0.99, rate(http_request_duration_seconds_bucket{job=~\"identity|course\"}[1m]))",
+          "expr": "histogram_quantile(0.99, rate(http_request_duration_seconds_bucket{job=~\"identity|course|enrollment|payment|notification\"}[1m]))",
           "legendFormat": "{{job}} {{handler}}"
         }
       ],
@@ -111,7 +111,7 @@
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         {
-          "expr": "http_requests_in_progress{job=~\"identity|course\"}",
+          "expr": "http_requests_in_progress{job=~\"identity|course|enrollment|payment|notification\"}",
           "legendFormat": "{{job}}"
         }
       ],
@@ -129,7 +129,7 @@
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "targets": [
         {
-          "expr": "rate(http_response_size_bytes_sum{job=~\"identity|course\"}[1m]) / rate(http_response_size_bytes_count{job=~\"identity|course\"}[1m])",
+          "expr": "rate(http_response_size_bytes_sum{job=~\"identity|course|enrollment|payment|notification\"}[1m]) / rate(http_response_size_bytes_count{job=~\"identity|course|enrollment|payment|notification\"}[1m])",
           "legendFormat": "{{job}} avg response"
         }
       ],
