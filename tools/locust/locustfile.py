@@ -5,6 +5,8 @@ from locust import HttpUser, task, between, events
 
 IDENTITY_URL = os.environ.get("IDENTITY_URL", "http://localhost:8001")
 COURSE_URL = os.environ.get("COURSE_URL", "http://localhost:8002")
+ENROLLMENT_URL = os.environ.get("ENROLLMENT_URL", "http://localhost:8003")
+PAYMENT_URL = os.environ.get("PAYMENT_URL", "http://localhost:8004")
 
 SEARCH_TERMS = [
     "python", "javascript", "machine learning", "data science", "web",
@@ -22,11 +24,27 @@ def _next_user_id() -> int:
 
 
 class StudentUser(HttpUser):
-    """70% of traffic — browse courses, view details."""
+    """70% of traffic — browse courses, view details, enroll."""
 
     weight = 7
     wait_time = between(1, 3)
     host = COURSE_URL
+
+    def on_start(self) -> None:
+        uid = random.randint(10000, 49999)  # students start at index 10000
+        email = f"user{uid}@example.com"
+        password = "password123"
+
+        resp = self.client.post(
+            f"{IDENTITY_URL}/login",
+            json={"email": email, "password": password},
+            name="[identity] /login",
+        )
+
+        if resp.status_code == 200:
+            self._token = resp.json()["access_token"]
+        else:
+            self._token = None
 
     @task(5)
     def list_courses(self) -> None:
@@ -41,6 +59,44 @@ class StudentUser(HttpUser):
             if items:
                 cid = items[0]["id"]
                 self.client.get(f"/courses/{cid}", name="/courses/:id")
+
+    @task(2)
+    def enroll_in_course(self) -> None:
+        if not self._token:
+            return
+        resp = self.client.get("/courses?limit=1", name="/courses (for enroll)")
+        if resp.status_code != 200:
+            return
+        items = resp.json().get("items", [])
+        if not items:
+            return
+        course = items[0]
+        cid = course["id"]
+
+        if not course["is_free"] and course.get("price"):
+            with self.client.post(
+                f"{PAYMENT_URL}/payments",
+                json={"course_id": cid, "amount": float(course["price"])},
+                headers={"Authorization": f"Bearer {self._token}"},
+                name="[payment] POST /payments",
+                catch_response=True,
+            ) as pay_resp:
+                if pay_resp.status_code == 201:
+                    pay_resp.success()
+                else:
+                    pay_resp.failure(f"Status {pay_resp.status_code}")
+
+        with self.client.post(
+            f"{ENROLLMENT_URL}/enrollments",
+            json={"course_id": cid},
+            headers={"Authorization": f"Bearer {self._token}"},
+            name="[enrollment] POST /enrollments",
+            catch_response=True,
+        ) as enroll_resp:
+            if enroll_resp.status_code in (201, 409):
+                enroll_resp.success()
+            else:
+                enroll_resp.failure(f"Status {enroll_resp.status_code}")
 
 
 class SearchUser(HttpUser):

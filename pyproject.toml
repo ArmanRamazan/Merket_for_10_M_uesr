@@ -8,5 +8,8 @@ members = [
     "libs/py/common",
     "services/py/identity",
     "services/py/course",
+    "services/py/enrollment",
+    "services/py/payment",
+    "services/py/notification",
     "tools/seed",
 ]

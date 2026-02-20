@@ -8,9 +8,14 @@ from faker import Faker
 
 IDENTITY_DB_URL = os.environ["IDENTITY_DB_URL"]
 COURSE_DB_URL = os.environ["COURSE_DB_URL"]
+ENROLLMENT_DB_URL = os.environ["ENROLLMENT_DB_URL"]
+PAYMENT_DB_URL = os.environ["PAYMENT_DB_URL"]
+NOTIFICATION_DB_URL = os.environ["NOTIFICATION_DB_URL"]
 
 USER_COUNT = 50_000
 COURSE_COUNT = 100_000
+ENROLLMENT_COUNT = 200_000
+PAYMENT_COUNT = 50_000
 BATCH_SIZE = 5_000
 
 # 80% students, 20% teachers
@@ -23,7 +28,7 @@ fake = Faker()
 SEED_PASSWORD_HASH = "$2b$12$LJ3m4ys3Lk0TSwHCbmQ0oOzHPCFDMBSVOGwpMkgiMfOFMkyNrtfjO"
 
 
-async def seed_users(pool: asyncpg.Pool) -> tuple[list[str], list[str]]:
+async def seed_users(pool: asyncpg.Pool) -> tuple[list[str], list[str], list[str]]:
     print(f"Seeding {USER_COUNT} users...")
     teacher_count = int(USER_COUNT * TEACHER_RATIO)
 
@@ -58,14 +63,17 @@ async def seed_users(pool: asyncpg.Pool) -> tuple[list[str], list[str]]:
     )
     teacher_ids = [str(row["id"]) for row in teacher_rows]
 
+    student_rows = await pool.fetch("SELECT id FROM users WHERE role = 'student'")
+    student_ids = [str(row["id"]) for row in student_rows]
+
     all_rows = await pool.fetch("SELECT id FROM users")
     all_ids = [str(row["id"]) for row in all_rows]
 
-    print(f"Seeded {len(all_ids)} users ({len(teacher_ids)} verified teachers)")
-    return all_ids, teacher_ids
+    print(f"Seeded {len(all_ids)} users ({len(teacher_ids)} verified teachers, {len(student_ids)} students)")
+    return all_ids, teacher_ids, student_ids
 
 
-async def seed_courses(pool: asyncpg.Pool, teacher_ids: list[str]) -> None:
+async def seed_courses(pool: asyncpg.Pool, teacher_ids: list[str]) -> list[tuple[str, bool, float]]:
     print(f"Seeding {COURSE_COUNT} courses...")
 
     subjects = [
@@ -107,12 +115,118 @@ async def seed_courses(pool: asyncpg.Pool, teacher_ids: list[str]) -> None:
 
         print(f"  Courses: {batch_end}/{COURSE_COUNT}")
 
+    # Fetch course data for enrollments
+    rows = await pool.fetch("SELECT id, is_free, price FROM courses")
+    course_data = [(str(r["id"]), r["is_free"], float(r["price"] or 0)) for r in rows]
     print(f"Seeded {COURSE_COUNT} courses")
+    return course_data
+
+
+async def seed_payments(
+    pool: asyncpg.Pool,
+    student_ids: list[str],
+    paid_courses: list[tuple[str, float]],
+) -> list[tuple[str, str, str]]:
+    """Seed payments and return (payment_id, student_id, course_id) tuples."""
+    print(f"Seeding {PAYMENT_COUNT} payments...")
+
+    payment_records: list[tuple[str, str, str]] = []
+
+    for batch_start in range(0, PAYMENT_COUNT, BATCH_SIZE):
+        batch_end = min(batch_start + BATCH_SIZE, PAYMENT_COUNT)
+        buf = io.BytesIO()
+
+        for _ in range(batch_start, batch_end):
+            student_id = random.choice(student_ids)
+            course_id, price = random.choice(paid_courses)
+            line = f"{student_id}\t{course_id}\t{price}\tcompleted\n"
+            buf.write(line.encode())
+
+        buf.seek(0)
+
+        async with pool.acquire() as conn:
+            await conn.copy_to_table(
+                "payments",
+                source=buf,
+                columns=["student_id", "course_id", "amount", "status"],
+                format="text",
+            )
+
+        print(f"  Payments: {batch_end}/{PAYMENT_COUNT}")
+
+    rows = await pool.fetch("SELECT id, student_id, course_id FROM payments")
+    payment_records = [(str(r["id"]), str(r["student_id"]), str(r["course_id"])) for r in rows]
+    print(f"Seeded {len(payment_records)} payments")
+    return payment_records
+
+
+async def seed_enrollments(
+    pool: asyncpg.Pool,
+    student_ids: list[str],
+    course_data: list[tuple[str, bool, float]],
+    payment_records: list[tuple[str, str, str]],
+) -> None:
+    print(f"Seeding {ENROLLMENT_COUNT} enrollments...")
+
+    # Build payment lookup: (student_id, course_id) -> payment_id
+    payment_lookup: dict[tuple[str, str], str] = {}
+    for pid, sid, cid in payment_records:
+        payment_lookup[(sid, cid)] = pid
+
+    seen: set[tuple[str, str]] = set()
+    free_course_ids = [cid for cid, is_free, _ in course_data if is_free]
+    paid_course_ids = [cid for cid, is_free, _ in course_data if not is_free]
+
+    for batch_start in range(0, ENROLLMENT_COUNT, BATCH_SIZE):
+        batch_end = min(batch_start + BATCH_SIZE, ENROLLMENT_COUNT)
+        buf = io.BytesIO()
+        written = 0
+
+        for _ in range(batch_start, batch_end):
+            student_id = random.choice(student_ids)
+            # 60% free, 40% paid
+            if random.random() < 0.6 and free_course_ids:
+                course_id = random.choice(free_course_ids)
+                payment_id = ""
+            elif paid_course_ids:
+                course_id = random.choice(paid_course_ids)
+                payment_id = payment_lookup.get((student_id, course_id), "")
+            else:
+                course_id = random.choice(free_course_ids)
+                payment_id = ""
+
+            key = (student_id, course_id)
+            if key in seen:
+                continue
+            seen.add(key)
+
+            line = f"{student_id}\t{course_id}\t{payment_id}\tenrolled\n"
+            buf.write(line.encode())
+            written += 1
+
+        if written == 0:
+            continue
+
+        buf.seek(0)
+
+        async with pool.acquire() as conn:
+            await conn.copy_to_table(
+                "enrollments",
+                source=buf,
+                columns=["student_id", "course_id", "payment_id", "status"],
+                format="text",
+            )
+
+        print(f"  Enrollments: {min(batch_end, len(seen))}/{ENROLLMENT_COUNT}")
+
+    print(f"Seeded {len(seen)} enrollments")
 
 
 async def main() -> None:
     identity_pool = await asyncpg.create_pool(IDENTITY_DB_URL, min_size=2, max_size=5)
     course_pool = await asyncpg.create_pool(COURSE_DB_URL, min_size=2, max_size=5)
+    enrollment_pool = await asyncpg.create_pool(ENROLLMENT_DB_URL, min_size=2, max_size=5)
+    payment_pool = await asyncpg.create_pool(PAYMENT_DB_URL, min_size=2, max_size=5)
 
     try:
         # Check if already seeded
@@ -121,12 +235,18 @@ async def main() -> None:
             print(f"Already seeded ({count} users). Skipping.")
             return
 
-        all_ids, teacher_ids = await seed_users(identity_pool)
-        await seed_courses(course_pool, teacher_ids)
+        all_ids, teacher_ids, student_ids = await seed_users(identity_pool)
+        course_data = await seed_courses(course_pool, teacher_ids)
+
+        paid_courses = [(cid, price) for cid, is_free, price in course_data if not is_free]
+        payment_records = await seed_payments(payment_pool, student_ids, paid_courses)
+        await seed_enrollments(enrollment_pool, student_ids, course_data, payment_records)
         print("Seeding complete!")
     finally:
         await identity_pool.close()
         await course_pool.close()
+        await enrollment_pool.close()
+        await payment_pool.close()
 
 
 if __name__ == "__main__":

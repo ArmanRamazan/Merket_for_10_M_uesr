@@ -7,7 +7,10 @@ members = [
     "common",
     "course",
     "eduplatform",
+    "enrollment",
     "identity",
+    "notification",
+    "payment",
     "seed",
 ]
 
@@ -264,6 +267,45 @@ wheels = [
 ]
 
 [[package]]
+name = "enrollment"
+version = "0.1.0"
+source = { virtual = "services/py/enrollment" }
+dependencies = [
+    { name = "asyncpg" },
+    { name = "common" },
+    { name = "fastapi" },
+    { name = "prometheus-fastapi-instrumentator" },
+    { name = "pydantic-settings" },
+    { name = "pyjwt" },
+    { name = "uvicorn" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "httpx" },
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "asyncpg", specifier = ">=0.30" },
+    { name = "common", editable = "libs/py/common" },
+    { name = "fastapi", specifier = ">=0.115" },
+    { name = "prometheus-fastapi-instrumentator", specifier = ">=7.0" },
+    { name = "pydantic-settings", specifier = ">=2.7" },
+    { name = "pyjwt", specifier = ">=2.10" },
+    { name = "uvicorn", specifier = ">=0.34" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "httpx", specifier = ">=0.28" },
+    { name = "pytest", specifier = ">=8.0" },
+    { name = "pytest-asyncio", specifier = ">=0.25" },
+]
+
+[[package]]
 name = "faker"
 version = "40.4.0"
 source = { registry = "https://pypi.org/simple" }
@@ -390,12 +432,90 @@ wheels = [
 ]
 
 [[package]]
+name = "notification"
+version = "0.1.0"
+source = { virtual = "services/py/notification" }
+dependencies = [
+    { name = "asyncpg" },
+    { name = "common" },
+    { name = "fastapi" },
+    { name = "prometheus-fastapi-instrumentator" },
+    { name = "pydantic-settings" },
+    { name = "pyjwt" },
+    { name = "uvicorn" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "httpx" },
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "asyncpg", specifier = ">=0.30" },
+    { name = "common", editable = "libs/py/common" },
+    { name = "fastapi", specifier = ">=0.115" },
+    { name = "prometheus-fastapi-instrumentator", specifier = ">=7.0" },
+    { name = "pydantic-settings", specifier = ">=2.7" },
+    { name = "pyjwt", specifier = ">=2.10" },
+    { name = "uvicorn", specifier = ">=0.34" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "httpx", specifier = ">=0.28" },
+    { name = "pytest", specifier = ">=8.0" },
+    { name = "pytest-asyncio", specifier = ">=0.25" },
+]
+
+[[package]]
 name = "packaging"
 version = "26.0"
 source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/65/ee/299d360cdc32edc7d2cf530f3accf79c4fca01e96ffc950d8a52213bd8e4/packaging-26.0.tar.gz", hash = "sha256:00243ae351a257117b6a241061796684b084ed1c516a08c48a3f7e147a9d80b4", size = 143416, upload-time = "2026-01-21T20:50:39.064Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/b7/b9/c538f279a4e237a006a2c98387d081e9eb060d203d8ed34467cc0f0b9b53/packaging-26.0-py3-none-any.whl", hash = "sha256:b36f1fef9334a5588b4166f8bcd26a14e521f2b55e6b9de3aaa80d3ff7a37529", size = 74366, upload-time = "2026-01-21T20:50:37.788Z" },
+]
+
+[[package]]
+name = "payment"
+version = "0.1.0"
+source = { virtual = "services/py/payment" }
+dependencies = [
+    { name = "asyncpg" },
+    { name = "common" },
+    { name = "fastapi" },
+    { name = "prometheus-fastapi-instrumentator" },
+    { name = "pydantic-settings" },
+    { name = "pyjwt" },
+    { name = "uvicorn" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "httpx" },
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "asyncpg", specifier = ">=0.30" },
+    { name = "common", editable = "libs/py/common" },
+    { name = "fastapi", specifier = ">=0.115" },
+    { name = "prometheus-fastapi-instrumentator", specifier = ">=7.0" },
+    { name = "pydantic-settings", specifier = ">=2.7" },
+    { name = "pyjwt", specifier = ">=2.10" },
+    { name = "uvicorn", specifier = ">=0.34" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "httpx", specifier = ">=0.28" },
+    { name = "pytest", specifier = ">=8.0" },
+    { name = "pytest-asyncio", specifier = ">=0.25" },
 ]
 
 [[package]]
