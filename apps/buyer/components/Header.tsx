@@ -6,6 +6,7 @@ import { useAuth } from "@/hooks/use-auth";
 const ROLE_LABELS: Record<string, string> = {
   student: "Студент",
   teacher: "Преподаватель",
+  admin: "Администратор",
 };
 
 export function Header() {
@@ -27,15 +28,26 @@ export function Header() {
             <span className="text-sm text-gray-400">...</span>
           ) : user ? (
             <>
-              <Link href="/enrollments" className="text-sm hover:underline">
-                Мои курсы
-              </Link>
+              {user.role === "teacher" ? (
+                <Link href="/my-courses" className="text-sm hover:underline">
+                  Мои курсы
+                </Link>
+              ) : (
+                <Link href="/enrollments" className="text-sm hover:underline">
+                  Мои курсы
+                </Link>
+              )}
               <Link href="/notifications" className="text-sm hover:underline">
                 Уведомления
               </Link>
               {user.role === "teacher" && user.is_verified && (
                 <Link href="/courses/new" className="text-sm hover:underline">
                   Создать курс
+                </Link>
+              )}
+              {user.role === "admin" && (
+                <Link href="/admin/teachers" className="text-sm hover:underline">
+                  Панель админа
                 </Link>
               )}
               <span className="text-sm text-gray-500">{user.name}</span>

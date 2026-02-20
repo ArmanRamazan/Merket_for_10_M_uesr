@@ -36,6 +36,12 @@ export function CourseCard({ course }: CourseCardProps) {
             ${course.price}
           </span>
         )}
+        {course.avg_rating != null && (
+          <span className="ml-auto flex items-center gap-1 text-xs text-yellow-600">
+            ★ {course.avg_rating}
+            <span className="text-gray-400">({course.review_count})</span>
+          </span>
+        )}
       </div>
       <h3 className="mb-1 font-semibold leading-tight">{course.title}</h3>
       <p className="mb-2 line-clamp-2 text-sm text-gray-500">

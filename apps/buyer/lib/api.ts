@@ -13,7 +13,7 @@ export interface User {
   id: string;
   email: string;
   name: string;
-  role: "student" | "teacher";
+  role: "student" | "teacher" | "admin";
   is_verified: boolean;
   created_at: string;
 }
@@ -28,11 +28,68 @@ export interface Course {
   duration_minutes: number;
   level: "beginner" | "intermediate" | "advanced";
   created_at: string;
+  avg_rating: number | null;
+  review_count: number;
 }
 
 export interface CourseList {
   items: Course[];
   total: number;
+}
+
+export interface Module {
+  id: string;
+  course_id: string;
+  title: string;
+  order: number;
+  created_at: string;
+}
+
+export interface Lesson {
+  id: string;
+  module_id: string;
+  title: string;
+  content: string;
+  video_url: string | null;
+  duration_minutes: number;
+  order: number;
+  created_at: string;
+}
+
+export interface CurriculumModule {
+  id: string;
+  course_id: string;
+  title: string;
+  order: number;
+  created_at: string;
+  lessons: Lesson[];
+}
+
+export interface CurriculumResponse {
+  course: Course;
+  modules: CurriculumModule[];
+  total_lessons: number;
+}
+
+export interface Review {
+  id: string;
+  student_id: string;
+  course_id: string;
+  rating: number;
+  comment: string;
+  created_at: string;
+}
+
+export interface ReviewList {
+  items: Review[];
+  total: number;
+}
+
+export interface CourseProgress {
+  course_id: string;
+  completed_lessons: number;
+  total_lessons: number;
+  percentage: number;
 }
 
 export interface Enrollment {
@@ -91,6 +148,32 @@ function authHeaders(token: string): HeadersInit {
   return { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
 }
 
+export interface PendingTeacher {
+  id: string;
+  email: string;
+  name: string;
+  created_at: string;
+}
+
+export interface PendingTeacherList {
+  items: PendingTeacher[];
+  total: number;
+}
+
+export const admin = {
+  pendingTeachers(token: string) {
+    return request<PendingTeacherList>(`${IDENTITY_URL}/admin/teachers/pending`, {
+      headers: authHeaders(token),
+    });
+  },
+  verifyTeacher(token: string, userId: string) {
+    return request<User>(`${IDENTITY_URL}/admin/users/${userId}/verify`, {
+      method: "PATCH",
+      headers: authHeaders(token),
+    });
+  },
+};
+
 export const identity = {
   register(email: string, password: string, name: string, role: string = "student") {
     return request<TokenResponse>(`${IDENTITY_URL}/register`, {
@@ -138,6 +221,135 @@ export const courses = {
       headers: authHeaders(token),
       body: JSON.stringify(data),
     });
+  },
+  curriculum(id: string) {
+    return request<CurriculumResponse>(`${COURSE_URL}/courses/${id}/curriculum`);
+  },
+  my(token: string, params?: { limit?: number; offset?: number }) {
+    const sp = new URLSearchParams();
+    if (params?.limit) sp.set("limit", String(params.limit));
+    if (params?.offset) sp.set("offset", String(params.offset));
+    const qs = sp.toString();
+    return request<CourseList>(`${COURSE_URL}/courses/my${qs ? `?${qs}` : ""}`, {
+      headers: authHeaders(token),
+    });
+  },
+  update(token: string, id: string, data: {
+    title?: string;
+    description?: string;
+    is_free?: boolean;
+    price?: number;
+    duration_minutes?: number;
+    level?: string;
+  }) {
+    return request<Course>(`${COURSE_URL}/courses/${id}`, {
+      method: "PUT",
+      headers: authHeaders(token),
+      body: JSON.stringify(data),
+    });
+  },
+};
+
+export const modules = {
+  create(token: string, courseId: string, data: { title: string; order: number }) {
+    return request<Module>(`${COURSE_URL}/courses/${courseId}/modules`, {
+      method: "POST",
+      headers: authHeaders(token),
+      body: JSON.stringify(data),
+    });
+  },
+  update(token: string, moduleId: string, data: { title?: string; order?: number }) {
+    return request<Module>(`${COURSE_URL}/modules/${moduleId}`, {
+      method: "PUT",
+      headers: authHeaders(token),
+      body: JSON.stringify(data),
+    });
+  },
+  delete(token: string, moduleId: string) {
+    return fetch(`${COURSE_URL}/modules/${moduleId}`, {
+      method: "DELETE",
+      headers: authHeaders(token),
+    });
+  },
+};
+
+export const lessons = {
+  create(token: string, moduleId: string, data: {
+    title: string;
+    content?: string;
+    video_url?: string;
+    duration_minutes?: number;
+    order?: number;
+  }) {
+    return request<Lesson>(`${COURSE_URL}/modules/${moduleId}/lessons`, {
+      method: "POST",
+      headers: authHeaders(token),
+      body: JSON.stringify(data),
+    });
+  },
+  get(id: string) {
+    return request<Lesson>(`${COURSE_URL}/lessons/${id}`);
+  },
+  update(token: string, lessonId: string, data: {
+    title?: string;
+    content?: string;
+    video_url?: string;
+    duration_minutes?: number;
+    order?: number;
+  }) {
+    return request<Lesson>(`${COURSE_URL}/lessons/${lessonId}`, {
+      method: "PUT",
+      headers: authHeaders(token),
+      body: JSON.stringify(data),
+    });
+  },
+  delete(token: string, lessonId: string) {
+    return fetch(`${COURSE_URL}/lessons/${lessonId}`, {
+      method: "DELETE",
+      headers: authHeaders(token),
+    });
+  },
+};
+
+export const reviews = {
+  create(token: string, data: { course_id: string; rating: number; comment?: string }) {
+    return request<Review>(`${COURSE_URL}/reviews`, {
+      method: "POST",
+      headers: authHeaders(token),
+      body: JSON.stringify(data),
+    });
+  },
+  byCourse(courseId: string, params?: { limit?: number; offset?: number }) {
+    const sp = new URLSearchParams();
+    if (params?.limit) sp.set("limit", String(params.limit));
+    if (params?.offset) sp.set("offset", String(params.offset));
+    const qs = sp.toString();
+    return request<ReviewList>(`${COURSE_URL}/reviews/course/${courseId}${qs ? `?${qs}` : ""}`);
+  },
+};
+
+export const progress = {
+  complete(token: string, lessonId: string, courseId: string) {
+    return request<{ id: string; lesson_id: string; course_id: string; completed_at: string }>(
+      `${ENROLLMENT_URL}/progress/lessons/${lessonId}/complete`,
+      {
+        method: "POST",
+        headers: authHeaders(token),
+        body: JSON.stringify({ course_id: courseId }),
+      },
+    );
+  },
+  course(token: string, courseId: string, totalLessons: number) {
+    return request<CourseProgress>(
+      `${ENROLLMENT_URL}/progress/courses/${courseId}?total_lessons=${totalLessons}`,
+      { headers: authHeaders(token) },
+    );
+  },
+  completedLessons(token: string, courseId: string) {
+    return request<{ course_id: string; completed_lesson_ids: string[] }>(
+      `${ENROLLMENT_URL}/progress/courses/${courseId}/lessons`,
+      { headers: authHeaders(token) },
+    );
   },
 };
 

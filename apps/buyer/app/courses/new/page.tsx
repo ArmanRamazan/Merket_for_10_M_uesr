@@ -20,13 +20,20 @@ export default function NewCoursePage() {
   const [submitting, setSubmitting] = useState(false);
 
   if (!loading && (!user || user.role !== "teacher" || !user.is_verified)) {
+    const isUnverifiedTeacher = user?.role === "teacher" && !user.is_verified;
     return (
       <>
         <Header />
         <main className="mx-auto max-w-sm px-4 py-12 text-center">
-          <p className="mb-4 text-gray-500">
-            Создавать курсы могут только верифицированные преподаватели
-          </p>
+          {isUnverifiedTeacher ? (
+            <div className="mb-4 rounded-lg border border-yellow-200 bg-yellow-50 p-4 text-sm text-yellow-800">
+              Ваш аккаунт ожидает верификации. После одобрения администратором вы сможете создавать курсы.
+            </div>
+          ) : (
+            <p className="mb-4 text-gray-500">
+              Создавать курсы могут только верифицированные преподаватели
+            </p>
+          )}
           <Link href="/" className="text-blue-600 hover:underline">
             На главную
           </Link>
@@ -49,7 +56,7 @@ export default function NewCoursePage() {
         duration_minutes: parseInt(duration, 10) || 0,
         level,
       });
-      router.push(`/courses/${course.id}`);
+      router.push(`/courses/${course.id}/edit`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create");
     } finally {
