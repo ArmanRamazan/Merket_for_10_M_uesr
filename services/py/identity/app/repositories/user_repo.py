@@ -37,6 +37,34 @@ class UserRepository:
         )
         return self._to_entity(row) if row else None
 
+    async def list_unverified_teachers(self, limit: int = 50, offset: int = 0) -> tuple[list[User], int]:
+        total = await self._pool.fetchval(
+            "SELECT count(*) FROM users WHERE role = 'teacher' AND is_verified = false",
+        )
+        rows = await self._pool.fetch(
+            """
+            SELECT id, email, password_hash, name, role, is_verified, created_at
+            FROM users WHERE role = 'teacher' AND is_verified = false
+            ORDER BY created_at
+            LIMIT $1 OFFSET $2
+            """,
+            limit,
+            offset,
+        )
+        return [self._to_entity(r) for r in rows], total
+
+    async def set_verified(self, user_id: UUID, verified: bool) -> User | None:
+        row = await self._pool.fetchrow(
+            """
+            UPDATE users SET is_verified = $2
+            WHERE id = $1
+            RETURNING id, email, password_hash, name, role, is_verified, created_at
+            """,
+            user_id,
+            verified,
+        )
+        return self._to_entity(row) if row else None
+
     @staticmethod
     def _to_entity(row: asyncpg.Record) -> User:
         return User(

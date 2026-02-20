@@ -47,6 +47,32 @@ def teacher_user(user_id):
 
 
 @pytest.fixture
+def unverified_teacher():
+    return User(
+        id=uuid4(),
+        email="unverified@example.com",
+        password_hash=bcrypt.hashpw(b"password123", bcrypt.gensalt()).decode(),
+        name="Unverified Teacher",
+        role=UserRole.TEACHER,
+        is_verified=False,
+        created_at=datetime.now(timezone.utc),
+    )
+
+
+@pytest.fixture
+def admin_user():
+    return User(
+        id=uuid4(),
+        email="admin@eduplatform.com",
+        password_hash=bcrypt.hashpw(b"password123", bcrypt.gensalt()).decode(),
+        name="Admin",
+        role=UserRole.ADMIN,
+        is_verified=True,
+        created_at=datetime.now(timezone.utc),
+    )
+
+
+@pytest.fixture
 def mock_repo():
     return AsyncMock(spec=UserRepository)
 
@@ -59,3 +85,18 @@ def auth_service(mock_repo):
         jwt_algorithm="HS256",
         jwt_ttl_seconds=3600,
     )
+
+
+@pytest.fixture
+def admin_token(admin_user, auth_service):
+    return auth_service._create_token(admin_user)
+
+
+@pytest.fixture
+def student_token(sample_user, auth_service):
+    return auth_service._create_token(sample_user)
+
+
+@pytest.fixture
+def teacher_token(teacher_user, auth_service):
+    return auth_service._create_token(teacher_user)

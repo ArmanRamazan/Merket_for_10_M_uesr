@@ -2,7 +2,7 @@ from uuid import UUID
 
 import bcrypt
 
-from common.errors import ConflictError, NotFoundError
+from common.errors import ConflictError, ForbiddenError, NotFoundError
 from common.security import create_access_token
 from app.domain.user import User, UserRole, TokenPair
 from app.repositories.user_repo import UserRepository
@@ -61,3 +61,25 @@ class AuthService:
         if not user:
             raise NotFoundError("User not found")
         return user
+
+    async def list_pending_teachers(
+        self, role: str, limit: int = 50, offset: int = 0
+    ) -> tuple[list[User], int]:
+        if role != UserRole.ADMIN:
+            raise ForbiddenError("Admin access required")
+        return await self._repo.list_unverified_teachers(limit, offset)
+
+    async def verify_teacher(self, admin_role: str, user_id: UUID) -> User:
+        if admin_role != UserRole.ADMIN:
+            raise ForbiddenError("Admin access required")
+        user = await self._repo.get_by_id(user_id)
+        if not user:
+            raise NotFoundError("User not found")
+        if user.role != UserRole.TEACHER:
+            raise ConflictError("User is not a teacher")
+        if user.is_verified:
+            raise ConflictError("Teacher already verified")
+        updated = await self._repo.set_verified(user_id, True)
+        if not updated:
+            raise NotFoundError("User not found")
+        return updated

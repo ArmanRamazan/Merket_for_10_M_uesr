@@ -11,6 +11,7 @@ from app.config import Settings
 from app.repositories.user_repo import UserRepository
 from app.services.auth_service import AuthService
 from app.routes.auth import router as auth_router
+from app.routes.admin import router as admin_router
 
 app_settings = Settings()
 
@@ -34,6 +35,8 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
             await conn.execute(f.read())
         with open("migrations/002_add_role.sql") as f:
             await conn.execute(f.read())
+        with open("migrations/003_add_admin_role.sql") as f:
+            await conn.execute(f.read())
 
     repo = UserRepository(_pool)
     _auth_service = AuthService(
@@ -49,4 +52,5 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
 app = FastAPI(title="Identity Service", lifespan=lifespan)
 register_error_handlers(app)
 app.include_router(auth_router)
+app.include_router(admin_router)
 Instrumentator().instrument(app).expose(app)
