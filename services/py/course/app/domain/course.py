@@ -8,6 +8,9 @@ from uuid import UUID
 
 from pydantic import BaseModel
 
+from app.domain.lesson import LessonResponse
+from app.domain.module import ModuleResponse
+
 
 class CourseLevel(StrEnum):
     BEGINNER = "beginner"
@@ -26,6 +29,8 @@ class Course:
     duration_minutes: int
     level: CourseLevel
     created_at: datetime
+    avg_rating: Decimal | None = None
+    review_count: int = 0
 
 
 class CourseCreate(BaseModel):
@@ -35,6 +40,15 @@ class CourseCreate(BaseModel):
     price: Decimal | None = None
     duration_minutes: int = 0
     level: CourseLevel = CourseLevel.BEGINNER
+
+
+class CourseUpdate(BaseModel):
+    title: str | None = None
+    description: str | None = None
+    is_free: bool | None = None
+    price: Decimal | None = None
+    duration_minutes: int | None = None
+    level: CourseLevel | None = None
 
 
 class CourseResponse(BaseModel):
@@ -47,8 +61,25 @@ class CourseResponse(BaseModel):
     duration_minutes: int
     level: CourseLevel
     created_at: datetime
+    avg_rating: Decimal | None = None
+    review_count: int = 0
 
 
 class CourseListResponse(BaseModel):
     items: list[CourseResponse]
     total: int
+
+
+class CurriculumModule(BaseModel):
+    id: UUID
+    course_id: UUID
+    title: str
+    order: int
+    created_at: datetime
+    lessons: list[LessonResponse]
+
+
+class CurriculumResponse(BaseModel):
+    course: CourseResponse
+    modules: list[CurriculumModule]
+    total_lessons: int

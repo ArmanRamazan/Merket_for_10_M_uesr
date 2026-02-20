@@ -9,13 +9,25 @@ from common.database import create_pool
 from common.errors import register_error_handlers
 from app.config import Settings
 from app.repositories.course_repo import CourseRepository
+from app.repositories.module_repo import ModuleRepository
+from app.repositories.lesson_repo import LessonRepository
+from app.repositories.review_repo import ReviewRepository
 from app.services.course_service import CourseService
+from app.services.module_service import ModuleService
+from app.services.lesson_service import LessonService
+from app.services.review_service import ReviewService
 from app.routes.courses import router as courses_router
+from app.routes.modules import router as modules_router
+from app.routes.lessons import router as lessons_router
+from app.routes.reviews import router as reviews_router
 
 app_settings = Settings()
 
 _pool: asyncpg.Pool | None = None
 _course_service: CourseService | None = None
+_module_service: ModuleService | None = None
+_lesson_service: LessonService | None = None
+_review_service: ReviewService | None = None
 
 
 def get_course_service() -> CourseService:
@@ -23,18 +35,44 @@ def get_course_service() -> CourseService:
     return _course_service
 
 
+def get_module_service() -> ModuleService:
+    assert _module_service is not None
+    return _module_service
+
+
+def get_lesson_service() -> LessonService:
+    assert _lesson_service is not None
+    return _lesson_service
+
+
+def get_review_service() -> ReviewService:
+    assert _review_service is not None
+    return _review_service
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
-    global _pool, _course_service
+    global _pool, _course_service, _module_service, _lesson_service, _review_service
 
     _pool = await create_pool(app_settings.database_url)
 
     async with _pool.acquire() as conn:
         with open("migrations/001_courses.sql") as f:
             await conn.execute(f.read())
+        with open("migrations/002_modules_lessons.sql") as f:
+            await conn.execute(f.read())
+        with open("migrations/003_reviews.sql") as f:
+            await conn.execute(f.read())
 
-    repo = CourseRepository(_pool)
-    _course_service = CourseService(repo)
+    course_repo = CourseRepository(_pool)
+    module_repo = ModuleRepository(_pool)
+    lesson_repo = LessonRepository(_pool)
+    review_repo = ReviewRepository(_pool)
+
+    _course_service = CourseService(course_repo, module_repo, lesson_repo)
+    _module_service = ModuleService(module_repo, course_repo)
+    _lesson_service = LessonService(lesson_repo, module_repo, course_repo)
+    _review_service = ReviewService(review_repo, course_repo)
     yield
     await _pool.close()
 
@@ -42,4 +80,7 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
 app = FastAPI(title="Course Service", lifespan=lifespan)
 register_error_handlers(app)
 app.include_router(courses_router)
+app.include_router(modules_router)
+app.include_router(lessons_router)
+app.include_router(reviews_router)
 Instrumentator().instrument(app).expose(app)

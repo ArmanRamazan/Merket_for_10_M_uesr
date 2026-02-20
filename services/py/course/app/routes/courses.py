@@ -5,7 +5,7 @@ import jwt
 from fastapi import APIRouter, Depends, Header, Query
 
 from common.errors import AppError
-from app.domain.course import CourseCreate, CourseResponse, CourseListResponse
+from app.domain.course import CourseCreate, CourseUpdate, CourseResponse, CourseListResponse, CurriculumResponse
 from app.services.course_service import CourseService
 
 router = APIRouter(prefix="/courses", tags=["courses"])
@@ -47,6 +47,8 @@ def _to_response(c: "Course") -> CourseResponse:
         duration_minutes=c.duration_minutes,
         level=c.level,
         created_at=c.created_at,
+        avg_rating=c.avg_rating,
+        review_count=c.review_count,
     )
 
 
@@ -67,6 +69,20 @@ async def list_courses(
     )
 
 
+@router.get("/my", response_model=CourseListResponse)
+async def list_my_courses(
+    claims: Annotated[dict, Depends(_get_current_user_claims)],
+    service: Annotated[CourseService, Depends(_get_course_service)],
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
+    offset: Annotated[int, Query(ge=0)] = 0,
+) -> CourseListResponse:
+    items, total = await service.list_my(claims["user_id"], limit, offset)
+    return CourseListResponse(
+        items=[_to_response(c) for c in items],
+        total=total,
+    )
+
+
 @router.get("/{course_id}", response_model=CourseResponse)
 async def get_course(
     course_id: UUID,
@@ -74,6 +90,14 @@ async def get_course(
 ) -> CourseResponse:
     c = await service.get(course_id)
     return _to_response(c)
+
+
+@router.get("/{course_id}/curriculum", response_model=CurriculumResponse)
+async def get_curriculum(
+    course_id: UUID,
+    service: Annotated[CourseService, Depends(_get_course_service)],
+) -> CurriculumResponse:
+    return await service.get_curriculum(course_id)
 
 
 @router.post("", response_model=CourseResponse, status_code=201)
@@ -92,5 +116,23 @@ async def create_course(
         price=body.price,
         duration_minutes=body.duration_minutes,
         level=body.level,
+    )
+    return _to_response(c)
+
+
+@router.put("/{course_id}", response_model=CourseResponse)
+async def update_course(
+    course_id: UUID,
+    body: CourseUpdate,
+    claims: Annotated[dict, Depends(_get_current_user_claims)],
+    service: Annotated[CourseService, Depends(_get_course_service)],
+) -> CourseResponse:
+    fields = body.model_dump(exclude_none=True)
+    c = await service.update(
+        course_id=course_id,
+        teacher_id=claims["user_id"],
+        role=claims["role"],
+        is_verified=claims["is_verified"],
+        **fields,
     )
     return _to_response(c)
