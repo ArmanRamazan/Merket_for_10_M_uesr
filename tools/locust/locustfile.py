@@ -24,7 +24,7 @@ def _next_user_id() -> int:
 
 
 class StudentUser(HttpUser):
-    """70% of traffic — browse courses, view details, enroll."""
+    """70% of traffic — browse courses, view details, enroll, view lessons, complete."""
 
     weight = 7
     wait_time = between(1, 3)
@@ -59,6 +59,67 @@ class StudentUser(HttpUser):
             if items:
                 cid = items[0]["id"]
                 self.client.get(f"/courses/{cid}", name="/courses/:id")
+
+    @task(3)
+    def view_curriculum(self) -> None:
+        resp = self.client.get("/courses?limit=1", name="/courses (for curriculum)")
+        if resp.status_code == 200:
+            items = resp.json().get("items", [])
+            if items:
+                cid = items[0]["id"]
+                self.client.get(f"/courses/{cid}/curriculum", name="/courses/:id/curriculum")
+
+    @task(2)
+    def view_lesson(self) -> None:
+        resp = self.client.get("/courses?limit=1", name="/courses (for lesson)")
+        if resp.status_code != 200:
+            return
+        items = resp.json().get("items", [])
+        if not items:
+            return
+        cid = items[0]["id"]
+        cur_resp = self.client.get(f"/courses/{cid}/curriculum", name="/courses/:id/curriculum (for lesson)")
+        if cur_resp.status_code != 200:
+            return
+        modules = cur_resp.json().get("modules", [])
+        for mod in modules:
+            lessons = mod.get("lessons", [])
+            if lessons:
+                lid = random.choice(lessons)["id"]
+                self.client.get(f"/lessons/{lid}", name="/lessons/:id")
+                return
+
+    @task(1)
+    def complete_lesson(self) -> None:
+        if not self._token:
+            return
+        resp = self.client.get("/courses?limit=1", name="/courses (for complete)")
+        if resp.status_code != 200:
+            return
+        items = resp.json().get("items", [])
+        if not items:
+            return
+        cid = items[0]["id"]
+        cur_resp = self.client.get(f"/courses/{cid}/curriculum", name="/courses/:id/curriculum (for complete)")
+        if cur_resp.status_code != 200:
+            return
+        modules = cur_resp.json().get("modules", [])
+        for mod in modules:
+            lessons = mod.get("lessons", [])
+            if lessons:
+                lid = random.choice(lessons)["id"]
+                with self.client.post(
+                    f"{ENROLLMENT_URL}/progress/lessons/{lid}/complete",
+                    json={"course_id": cid},
+                    headers={"Authorization": f"Bearer {self._token}"},
+                    name="[enrollment] POST /progress/lessons/:id/complete",
+                    catch_response=True,
+                ) as r:
+                    if r.status_code in (201, 409):
+                        r.success()
+                    else:
+                        r.failure(f"Status {r.status_code}")
+                return
 
     @task(2)
     def enroll_in_course(self) -> None:
@@ -170,3 +231,13 @@ class TeacherUser(HttpUser):
                 resp.success()
             else:
                 resp.failure(f"Status {resp.status_code}")
+
+    @task(1)
+    def list_my_courses(self) -> None:
+        if not self._token:
+            return
+        self.client.get(
+            f"{COURSE_URL}/courses/my?limit=10",
+            headers={"Authorization": f"Bearer {self._token}"},
+            name="[course] /courses/my",
+        )
