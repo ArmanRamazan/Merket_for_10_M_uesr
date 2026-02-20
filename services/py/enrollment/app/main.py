@@ -5,7 +5,7 @@ import asyncpg
 from fastapi import FastAPI
 from prometheus_fastapi_instrumentator import Instrumentator
 
-from common.database import create_pool
+from common.database import create_pool, update_pool_metrics
 from common.errors import register_error_handlers
 from app.config import Settings
 from app.repositories.enrollment_repo import EnrollmentRepository
@@ -56,4 +56,13 @@ app = FastAPI(title="Enrollment Service", lifespan=lifespan)
 register_error_handlers(app)
 app.include_router(enrollments_router)
 app.include_router(progress_router)
+
+
+@app.middleware("http")
+async def pool_metrics_middleware(request, call_next):  # type: ignore[no-untyped-def]
+    if _pool is not None:
+        update_pool_metrics(_pool, "enrollment")
+    return await call_next(request)
+
+
 Instrumentator().instrument(app).expose(app)
