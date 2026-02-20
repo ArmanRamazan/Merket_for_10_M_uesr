@@ -7,12 +7,12 @@
 ## Дерево
 
 ```
-marketplace/
+eduplatform/
 │
 ├── proto/                         # Контракты между сервисами (source of truth)
-│   ├── identity/v1/               #   Auth, users
-│   ├── catalog/v1/                #   Products, categories, inventory
-│   ├── orders/v1/                 #   Orders, cart
+│   ├── identity/v1/               #   Auth, users, roles
+│   ├── course/v1/                 #   Courses, lessons, materials
+│   ├── enrollment/v1/             #   Enrollment, progress
 │   └── events/v1/                 #   Domain events (async)
 │
 ├── libs/                          # Shared код (минимум, только DRY)
@@ -25,19 +25,19 @@ marketplace/
 │
 ├── services/                      # Deployable сервисы
 │   ├── py/                        # Python сервисы (бизнес-логика)
-│   │   ├── identity/              #   Регистрация, auth, JWT, roles
-│   │   ├── catalog/               #   CRUD товаров, категории, inventory
-│   │   ├── orders/                #   Заказы, корзина, state machine
+│   │   ├── identity/              #   Регистрация, auth, JWT, roles (student/teacher)
+│   │   ├── course/                #   CRUD курсов, поиск, role-based access
+│   │   ├── enrollment/            #   Запись на курс, прогресс, сертификаты
 │   │   └── notifications/         #   Email, push (event consumer)
 │   └── rs/                        # Rust сервисы (performance-critical)
 │       ├── api-gateway/           #   Routing, auth check, rate limiting
 │       ├── search/                #   Поисковый proxy + ranking
 │       ├── video-processor/       #   Upload, transcode, stream
-│       └── payment-engine/        #   Транзакции, escrow, payouts
+│       └── payment-engine/        #   Транзакции, подписки, payouts
 │
 ├── apps/                          # Frontend приложения (Next.js)
-│   ├── buyer/                     #   Покупательский сайт (SSR/SSG/Client)
-│   └── seller/                    #   Дашборд продавца (Client-side)
+│   ├── buyer/                     #   Студенческий сайт (SSR/SSG/Client)
+│   └── seller/                    #   Дашборд преподавателя (Client-side)
 │
 ├── packages/                      # Shared frontend пакеты
 │   ├── ui/                        #   UI Kit: Radix + Tailwind компоненты
@@ -49,7 +49,8 @@ marketplace/
 │   └── k8s/base/                  #   K8s manifests
 │
 ├── tools/                         # Dev utilities
-│   └── seed/                      #   Database seeding scripts
+│   ├── seed/                      #   Database seeding scripts
+│   └── locust/                    #   Load test scenarios
 │
 └── docs/                          # Документация (goals, phases, ADR)
 ```
@@ -68,7 +69,7 @@ marketplace/
 | Каждый Python сервис: `routes → services → domain → repositories` | **SRP + DIP** | Clean Architecture слои. Domain не знает про HTTP и БД |
 | `events/v1/` в proto | **OCP** | Новые события добавляются без изменения существующих сервисов |
 | `deploy/` отдельно от сервисов | **SRP** | Инфраструктура не смешивается с бизнес-логикой |
-| `apps/` для фронтенда, `packages/` для shared | **SRP** | Buyer и Seller — разные приложения с разными требованиями к рендерингу и аудиториями |
+| `apps/` для фронтенда, `packages/` для shared | **SRP** | Студент и преподаватель — разные приложения с разными требованиями к рендерингу и аудиториями |
 | `packages/ui/` отдельно | **DRY + OCP** | Единый UI Kit для всех приложений. Новый app использует готовые компоненты |
 | `packages/api-client/` с codegen | **DIP** | Фронтенд зависит от сгенерированного контракта, не от деталей реализации API |
 
@@ -76,10 +77,9 @@ marketplace/
 
 | Чего нет | Когда появится | Триггер для создания |
 |----------|---------------|---------------------|
-| `services/py/messaging/` | Phase 1 | Когда buyer-seller chat станет приоритетом |
-| `services/py/moderation/` | Phase 1 | Когда будет > 1000 товаров и нужна модерация |
-| `services/py/analytics-api/` | Phase 2 | Когда seller dashboard потребует аналитику |
-| `services/py/seller-tools/` | Phase 1 | Когда seller dashboard станет отдельным сервисом (пока внутри catalog) |
+| `services/py/enrollment/` | Phase 1 | Когда запись на курс станет приоритетом |
+| `services/py/moderation/` | Phase 1 | Когда будет > 1000 курсов и нужна модерация контента |
+| `services/py/analytics-api/` | Phase 2 | Когда teacher dashboard потребует аналитику |
 | `services/rs/feed-builder/` | Phase 2 | Когда рекомендации станут приоритетом |
 | `workers/` директория | Когда вырастет | Пока background jobs живут внутри сервисов. Выделим когда нужна независимая масштабируемость |
 | `libs/py/testing/` | Когда будет boilerplate | Пока fixtures живут в `tests/` каждого сервиса. Выделим когда увидим дублирование |

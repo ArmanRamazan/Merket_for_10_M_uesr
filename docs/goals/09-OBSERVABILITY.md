@@ -1,7 +1,7 @@
 # 09 — Наблюдаемость и SLO
 
 > Владелец: Architect / SRE
-> Последнее обновление: 2026-02-19
+> Последнее обновление: 2026-02-20
 
 ---
 
@@ -22,8 +22,8 @@
 ### Tier 2 — Важные (функциональность)
 | Сервис | Метрика | SLO |
 |--------|---------|-----|
-| Catalog API | Latency p95 | < 200ms |
-| Orders API | Latency p95 | < 300ms |
+| Course API | Latency p95 | < 200ms |
+| Enrollment API | Latency p95 | < 300ms |
 | Notifications | Delivery time | < 30 sec (email), < 5 sec (push) |
 | Messaging | Delivery time | < 200ms |
 
@@ -42,7 +42,7 @@
 - [ ] 🔴 Определить стек: Prometheus + Grafana (self-hosted) или Datadog/Grafana Cloud
 - [ ] 🔴 RED метрики для каждого сервиса (Rate, Errors, Duration)
 - [ ] 🔴 USE метрики для инфраструктуры (Utilization, Saturation, Errors)
-- [ ] 🔴 Business метрики в Grafana: GMV, orders/min, active users, conversion rate
+- [ ] 🔴 Business метрики в Grafana: revenue, enrollments/min, active users, completion rate
 - [ ] 🔴 SLO dashboards: burn rate, error budget remaining
 
 ### Logging
@@ -69,7 +69,7 @@
 
 ### Dashboards
 - [ ] 🔴 **System Overview:** health всех сервисов, error rate, latency
-- [ ] 🔴 **Business Dashboard:** GMV, orders, users online, conversion funnel
+- [ ] 🔴 **Business Dashboard:** revenue, enrollments, users online, completion funnel
 - [ ] 🔴 **Per-service dashboards:** детали по каждому сервису
 - [ ] 🔴 **Infrastructure:** CPU, memory, disk, network по нодам
 - [ ] 🔴 **Cost Dashboard:** cloud spend by service, projections

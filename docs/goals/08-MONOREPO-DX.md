@@ -1,23 +1,23 @@
 # 08 — Монорепа и Developer Experience
 
 > Владелец: Principal Developer / Platform Team
-> Последнее обновление: 2026-02-19
+> Последнее обновление: 2026-02-20
 
 ---
 
 ## Целевая структура монорепы
 
 ```
-marketplace/
+eduplatform/
 ├── CLAUDE.md                    # AI-assistant instructions
 ├── README.md
 ├── Cargo.toml                   # Rust workspace root
-├── pyproject.toml               # Python workspace root (uv/poetry)
+├── pyproject.toml               # Python workspace root (uv)
 ├── justfile                     # Task runner (just)
 │
 ├── proto/                       # Shared protobuf definitions
-│   ├── catalog/v1/
-│   ├── orders/v1/
+│   ├── course/v1/
+│   ├── enrollment/v1/
 │   ├── payments/v1/
 │   └── events/v1/
 │
@@ -33,17 +33,17 @@ marketplace/
 │
 ├── services/                    # Deployable services
 │   ├── py/
-│   │   ├── identity/            # Auth, users, roles
-│   │   ├── catalog/             # Products, categories, inventory
-│   │   ├── orders/              # Order management
+│   │   ├── identity/            # Auth, users, roles (student/teacher)
+│   │   ├── course/              # Courses, lessons, materials
+│   │   ├── enrollment/          # Enrollment, progress, certificates
 │   │   ├── notifications/       # Email, push, SMS
 │   │   ├── moderation/          # Content moderation
-│   │   ├── seller-tools/        # Seller dashboard backend
+│   │   ├── teacher-tools/       # Teacher dashboard backend
 │   │   └── analytics-api/       # Analytics API
 │   └── rs/
 │       ├── search/              # Search engine proxy + ranking
 │       ├── video-processor/     # Transcoding, streaming
-│       ├── messaging/           # WebSocket real-time chat
+│       ├── messaging/           # WebSocket real-time Q&A
 │       ├── payment-engine/      # Transaction processing
 │       ├── event-ingestion/     # High-throughput event collector
 │       └── api-gateway/         # Gateway, rate limiting, routing
@@ -51,7 +51,7 @@ marketplace/
 ├── workers/                     # Background workers
 │   ├── py/
 │   │   ├── email-sender/
-│   │   ├── image-processor/
+│   │   ├── certificate-generator/
 │   │   └── analytics-aggregator/
 │   └── rs/
 │       ├── video-transcoder/
@@ -59,8 +59,8 @@ marketplace/
 │
 ├── migrations/                  # Database migrations (per service)
 │   ├── identity/
-│   ├── catalog/
-│   ├── orders/
+│   ├── course/
+│   ├── enrollment/
 │   └── payments/
 │
 ├── deploy/                      # Infrastructure as Code
@@ -76,7 +76,7 @@ marketplace/
 └── tools/                       # Developer tools
     ├── cli/                     # Internal CLI (Rust)
     ├── seed/                    # Database seeding scripts
-    └── scripts/                 # Utility scripts
+    └── locust/                  # Load test scenarios
 ```
 
 ---
@@ -115,6 +115,6 @@ marketplace/
 - [ ] 🔴 Unit tests: каждый сервис, мокают внешние зависимости, < 30 сек
 - [ ] 🔴 Integration tests: сервис + его БД (testcontainers), < 2 мин
 - [ ] 🔴 Contract tests: проверка совместимости между сервисами (Pact)
-- [ ] 🔴 E2E tests: критические бизнес-потоки (регистрация → покупка → доставка), < 5 мин
+- [ ] 🔴 E2E tests: критические бизнес-потоки (регистрация → запись на курс → прохождение), < 5 мин
 - [ ] 🔴 Load tests: Locust сценарии, запуск еженедельно
 - [ ] 🔴 Chaos tests: ежемесячно в staging

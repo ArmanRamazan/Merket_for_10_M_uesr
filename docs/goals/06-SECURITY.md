@@ -14,7 +14,7 @@
 | Payment fraud | Высокая | Критический | 3DS, fraud scoring, escrow |
 | DDoS | Средняя | Высокий | CDN, rate limiting, auto-scaling |
 | Data breach | Средняя | Критический | Encryption at rest/transit, access control |
-| Fake sellers/products | Высокая | Высокий | KYC, AI moderation, manual review |
+| Fake teachers/courses | Высокая | Высокий | Verification, AI moderation, manual review |
 | Insider threat | Низкая | Критический | RBAC, audit logs, principle of least privilege |
 
 ---
