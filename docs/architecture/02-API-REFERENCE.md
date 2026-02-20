@@ -1,6 +1,6 @@
 # 02 — API Reference
 
-> Последнее обновление: 2026-02-20
+> Последнее обновление: 2026-02-21
 > Стадия: MVP (Phase 0)
 
 ---
@@ -17,7 +17,7 @@
   "email": "user@example.com",
   "password": "secret123",
   "name": "Ivan Petrov",
-  "role": "student"          // optional, default "student". Enum: "student" | "teacher"
+  "role": "student"          // optional, default "student". Enum: "student" | "teacher" | "admin"
 }
 ```
 
@@ -90,6 +90,69 @@
 
 ---
 
+### GET /admin/teachers/pending
+
+Список преподавателей, ожидающих верификации. Только для `role=admin`.
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Query params:**
+| Параметр | Тип | Default | Описание |
+|----------|-----|---------|----------|
+| `limit` | int (1-100) | 50 | Количество записей |
+| `offset` | int (≥0) | 0 | Смещение |
+
+**Response `200`:**
+```json
+{
+  "items": [
+    {
+      "id": "...",
+      "email": "teacher@example.com",
+      "name": "Ivan Petrov",
+      "created_at": "2026-02-20T12:00:00+00:00"
+    }
+  ],
+  "total": 5
+}
+```
+
+**Errors:**
+| Code | Причина |
+|------|---------|
+| 401 | Отсутствует или невалидный токен |
+| 403 | `role != admin` — "Admin access required" |
+
+---
+
+### PATCH /admin/users/{user_id}/verify
+
+Верифицировать преподавателя. Только для `role=admin`.
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Response `200`:**
+```json
+{
+  "id": "...",
+  "email": "teacher@example.com",
+  "name": "Ivan Petrov",
+  "role": "teacher",
+  "is_verified": true,
+  "created_at": "2026-02-20T12:00:00+00:00"
+}
+```
+
+**Errors:**
+| Code | Причина |
+|------|---------|
+| 401 | Отсутствует или невалидный токен |
+| 403 | `role != admin` — "Admin access required" |
+| 404 | Пользователь не найден |
+| 409 | Пользователь не является teacher / уже верифицирован |
+
+---
+
 ## Course Service (`:8002`)
 
 ### GET /courses
@@ -116,6 +179,8 @@
       "price": null,
       "duration_minutes": 120,
       "level": "beginner",
+      "avg_rating": 4.35,
+      "review_count": 12,
       "created_at": "2026-02-20T12:00:00+00:00"
     }
   ],
@@ -165,6 +230,219 @@
 | 403 | `role != teacher` — "Only teachers can create courses" |
 | 403 | `is_verified == false` — "Only verified teachers can create courses" |
 | 422 | Невалидные данные |
+
+---
+
+### GET /courses/my
+
+Список курсов текущего преподавателя. Требует JWT (teacher).
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Query params:** `limit`, `offset` (аналогично /courses).
+
+**Response `200`:** Аналогично GET /courses.
+
+---
+
+### GET /courses/{course_id}/curriculum
+
+Программа курса: модули с вложенными уроками. Публичный endpoint.
+
+**Response `200`:**
+```json
+{
+  "course": { "...": "Course object" },
+  "modules": [
+    {
+      "id": "...",
+      "course_id": "...",
+      "title": "Введение",
+      "order": 0,
+      "created_at": "...",
+      "lessons": [
+        {
+          "id": "...",
+          "module_id": "...",
+          "title": "Первый урок",
+          "content": "...",
+          "video_url": null,
+          "duration_minutes": 30,
+          "order": 0,
+          "created_at": "..."
+        }
+      ]
+    }
+  ],
+  "total_lessons": 15
+}
+```
+
+---
+
+### PUT /courses/{course_id}
+
+Обновление курса. Только для **verified teacher** (owner check).
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Request:** Все поля опциональны.
+```json
+{
+  "title": "Новое название",
+  "description": "Новое описание",
+  "is_free": false,
+  "price": 29.99,
+  "duration_minutes": 180,
+  "level": "intermediate"
+}
+```
+
+**Response `200`:** Объект `Course`.
+
+**Errors:**
+| Code | Причина |
+|------|---------|
+| 403 | Не owner или не verified teacher |
+| 404 | Курс не найден |
+
+---
+
+### POST /courses/{course_id}/modules
+
+Создание модуля. Только для **verified teacher** (owner check).
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Request:**
+```json
+{
+  "title": "Введение",
+  "order": 0
+}
+```
+
+**Response `201`:** Объект `Module`.
+
+---
+
+### PUT /modules/{module_id}
+
+Обновление модуля. Только для teacher (owner check).
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Response `200`:** Объект `Module`.
+
+---
+
+### DELETE /modules/{module_id}
+
+Удаление модуля (каскадное удаление уроков). Только для teacher (owner check).
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Response `204`:** No content.
+
+---
+
+### POST /modules/{module_id}/lessons
+
+Создание урока. Только для **verified teacher** (owner check через module→course).
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Request:**
+```json
+{
+  "title": "Первый урок",
+  "content": "Содержимое урока в Markdown",
+  "video_url": "https://youtube.com/embed/...",
+  "duration_minutes": 30,
+  "order": 0
+}
+```
+
+**Response `201`:** Объект `Lesson`.
+
+---
+
+### GET /lessons/{lesson_id}
+
+Содержимое урока. Публичный endpoint.
+
+**Response `200`:** Объект `Lesson`.
+
+---
+
+### PUT /lessons/{lesson_id}
+
+Обновление урока. Только для teacher (owner check).
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Response `200`:** Объект `Lesson`.
+
+---
+
+### DELETE /lessons/{lesson_id}
+
+Удаление урока. Только для teacher (owner check).
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Response `204`:** No content.
+
+---
+
+### POST /reviews
+
+Оставить отзыв на курс. Только для `role=student`. Один отзыв на курс.
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Request:**
+```json
+{
+  "course_id": "550e8400-e29b-41d4-a716-446655440000",
+  "rating": 5,
+  "comment": "Отличный курс!"
+}
+```
+
+**Response `201`:** Объект `Review`.
+
+**Errors:**
+| Code | Причина |
+|------|---------|
+| 403 | `role != student` |
+| 404 | Курс не найден |
+| 409 | Уже оставлен отзыв на этот курс |
+
+---
+
+### GET /reviews/course/{course_id}
+
+Отзывы на курс. Публичный endpoint.
+
+**Query params:** `limit`, `offset`.
+
+**Response `200`:**
+```json
+{
+  "items": [
+    {
+      "id": "...",
+      "student_id": "...",
+      "course_id": "...",
+      "rating": 5,
+      "comment": "Отличный курс!",
+      "created_at": "..."
+    }
+  ],
+  "total": 12
+}
+```
 
 ---
 
@@ -237,6 +515,76 @@
 {
   "course_id": "...",
   "count": 42
+}
+```
+
+---
+
+### POST /progress/lessons/{lesson_id}/complete
+
+Отметить урок как пройденный. Только для `role=student`.
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Request:**
+```json
+{
+  "course_id": "550e8400-e29b-41d4-a716-446655440000"
+}
+```
+
+**Response `201`:**
+```json
+{
+  "id": "...",
+  "lesson_id": "...",
+  "course_id": "...",
+  "completed_at": "2026-02-20T12:00:00+00:00"
+}
+```
+
+**Errors:**
+| Code | Причина |
+|------|---------|
+| 403 | `role != student` |
+| 409 | Урок уже пройден |
+
+---
+
+### GET /progress/courses/{course_id}
+
+Прогресс студента по курсу. Требует JWT.
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Query params:**
+| Параметр | Тип | Описание |
+|----------|-----|----------|
+| `total_lessons` | int | Общее количество уроков в курсе |
+
+**Response `200`:**
+```json
+{
+  "course_id": "...",
+  "completed_lessons": 8,
+  "total_lessons": 15,
+  "percentage": 53.3
+}
+```
+
+---
+
+### GET /progress/courses/{course_id}/lessons
+
+Список пройденных уроков. Требует JWT.
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Response `200`:**
+```json
+{
+  "course_id": "...",
+  "completed_lesson_ids": ["uuid1", "uuid2", "..."]
 }
 ```
 
@@ -394,13 +742,13 @@ Mock оплата курса. Всегда возвращает `status=complete
 | `sub` | UUID string | User ID |
 | `iat` | int | Issued at (unix timestamp) |
 | `exp` | int | Expiration (iat + 3600 сек) |
-| `role` | string | `"student"` или `"teacher"` |
+| `role` | string | `"student"`, `"teacher"` или `"admin"` |
 | `is_verified` | bool | Верифицирован ли преподаватель |
 
 - Алгоритм: **HS256**
 - Shared secret: `JWT_SECRET` env var (одинаковый для всех сервисов)
 - TTL: 1 час (3600 секунд)
-- Оба сервиса валидируют JWT самостоятельно, без обращения к Identity
+- Все 5 сервисов валидируют JWT самостоятельно, без обращения к Identity
 
 ---
 

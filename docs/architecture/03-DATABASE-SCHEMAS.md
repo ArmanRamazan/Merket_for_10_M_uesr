@@ -1,6 +1,6 @@
 # 03 — Database Schemas
 
-> Последнее обновление: 2026-02-20
+> Последнее обновление: 2026-02-21
 > Стадия: MVP (Phase 0)
 
 ---
@@ -16,11 +16,15 @@ identity-db (PostgreSQL 16 Alpine, :5433)
 
 course-db (PostgreSQL 16 Alpine, :5434)
   └── database: course
-       └── table: courses
+       ├── table: courses
+       ├── table: modules
+       ├── table: lessons
+       └── table: reviews
 
 enrollment-db (PostgreSQL 16 Alpine, :5435)
   └── database: enrollment
-       └── table: enrollments
+       ├── table: enrollments
+       └── table: lesson_progress
 
 payment-db (PostgreSQL 16 Alpine, :5436)
   └── database: payment
@@ -38,7 +42,7 @@ notification-db (PostgreSQL 16 Alpine, :5437)
 ### ENUM: `user_role`
 
 ```sql
-CREATE TYPE user_role AS ENUM ('student', 'teacher');
+CREATE TYPE user_role AS ENUM ('student', 'teacher', 'admin');
 ```
 
 ### Table: `users`
@@ -61,7 +65,7 @@ CREATE TABLE users (
 | `email` | VARCHAR(255) | UNIQUE, NOT NULL | Email для входа |
 | `password_hash` | VARCHAR(255) | NOT NULL | bcrypt hash пароля |
 | `name` | VARCHAR(255) | NOT NULL | Имя пользователя |
-| `role` | user_role | NOT NULL, DEFAULT 'student' | Роль: student или teacher |
+| `role` | user_role | NOT NULL, DEFAULT 'student' | Роль: student, teacher или admin |
 | `is_verified` | BOOLEAN | NOT NULL, DEFAULT false | Верификация преподавателя |
 | `created_at` | TIMESTAMPTZ | NOT NULL, DEFAULT now() | Дата создания |
 
@@ -70,6 +74,7 @@ CREATE TABLE users (
 **Миграции:**
 - `001_users.sql` — создание таблицы users
 - `002_add_role.sql` — добавление role ENUM и is_verified
+- `003_add_admin_role.sql` — добавление значения `admin` в ENUM user_role
 
 ---
 
@@ -93,6 +98,8 @@ CREATE TABLE courses (
     price            NUMERIC(12,2),
     duration_minutes INTEGER NOT NULL DEFAULT 0,
     level            course_level NOT NULL DEFAULT 'beginner',
+    avg_rating       NUMERIC(3,2),
+    review_count     INTEGER NOT NULL DEFAULT 0,
     created_at       TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 ```
@@ -107,6 +114,8 @@ CREATE TABLE courses (
 | `price` | NUMERIC(12,2) | nullable | Цена (если не бесплатный) |
 | `duration_minutes` | INTEGER | NOT NULL, DEFAULT 0 | Длительность в минутах |
 | `level` | course_level | NOT NULL, DEFAULT 'beginner' | Уровень сложности |
+| `avg_rating` | NUMERIC(3,2) | nullable | Средний рейтинг (денормализация) |
+| `review_count` | INTEGER | NOT NULL, DEFAULT 0 | Количество отзывов (денормализация) |
 | `created_at` | TIMESTAMPTZ | NOT NULL, DEFAULT now() | Дата создания |
 
 **Индексы:** только PK (id). `teacher_id` не имеет FK constraint — eventual consistency.
@@ -115,6 +124,51 @@ CREATE TABLE courses (
 
 **Миграции:**
 - `001_courses.sql` — создание ENUM course_level и таблицы courses
+- `002_modules_lessons.sql` — таблицы modules и lessons
+- `003_reviews.sql` — таблица reviews + avg_rating/review_count в courses
+
+### Table: `modules`
+
+```sql
+CREATE TABLE modules (
+    id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    course_id  UUID NOT NULL REFERENCES courses(id) ON DELETE CASCADE,
+    title      VARCHAR(500) NOT NULL,
+    "order"    INTEGER NOT NULL DEFAULT 0,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+```
+
+### Table: `lessons`
+
+```sql
+CREATE TABLE lessons (
+    id               UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    module_id        UUID NOT NULL REFERENCES modules(id) ON DELETE CASCADE,
+    title            VARCHAR(500) NOT NULL,
+    content          TEXT NOT NULL DEFAULT '',
+    video_url        VARCHAR(2000),
+    duration_minutes INTEGER NOT NULL DEFAULT 0,
+    "order"          INTEGER NOT NULL DEFAULT 0,
+    created_at       TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+```
+
+### Table: `reviews`
+
+```sql
+CREATE TABLE reviews (
+    id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    student_id UUID NOT NULL,
+    course_id  UUID NOT NULL,
+    rating     SMALLINT NOT NULL CHECK (rating >= 1 AND rating <= 5),
+    comment    TEXT NOT NULL DEFAULT '',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE(student_id, course_id)
+);
+```
+
+**Денормализация:** `courses.avg_rating` (NUMERIC(3,2)) и `courses.review_count` (INTEGER) обновляются при создании review.
 
 ---
 
@@ -153,6 +207,30 @@ CREATE TABLE enrollments (
 
 **Миграции:**
 - `001_enrollments.sql` — создание ENUM enrollment_status и таблицы enrollments
+- `002_lesson_progress.sql` — таблица lesson_progress
+
+### Table: `lesson_progress`
+
+```sql
+CREATE TABLE lesson_progress (
+    id           UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    student_id   UUID NOT NULL,
+    lesson_id    UUID NOT NULL,
+    course_id    UUID NOT NULL,
+    completed_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE(student_id, lesson_id)
+);
+```
+
+| Column | Type | Constraints | Описание |
+|--------|------|-------------|----------|
+| `id` | UUID | PK, auto | Уникальный идентификатор |
+| `student_id` | UUID | NOT NULL | ID студента |
+| `lesson_id` | UUID | NOT NULL | ID урока (из Course Service) |
+| `course_id` | UUID | NOT NULL | ID курса (для быстрого подсчёта прогресса) |
+| `completed_at` | TIMESTAMPTZ | NOT NULL, DEFAULT now() | Когда урок завершён |
+
+**Индексы:** PK (id) + UNIQUE (student_id, lesson_id).
 
 ---
 

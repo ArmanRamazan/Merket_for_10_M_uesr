@@ -1,6 +1,8 @@
-# Phase 1 — Launch (Месяц 3-4)
+# Phase 1 — Launch (Оптимизация, 10K → 100K MAU)
 
-> **Цель:** 0 → 100K MAU. Первые реальные студенты и преподаватели, первые платные курсы, первые инсайты.
+> **Цель:** устранить bottleneck-и MVP, подготовить продукт к первым реальным пользователям. Первые платные курсы, первые преподаватели, первый revenue.
+>
+> **Предусловие:** Phase 0 завершён — полный цикл обучения работает (уроки, прогресс, отзывы).
 
 ---
 
@@ -12,69 +14,86 @@
 | Активные преподаватели | 1 000 |
 | Курсов на платформе | 10 000 |
 | Revenue / месяц | $100K |
+| Course completion rate | 20% |
 | Среднее время загрузки страницы | < 2 sec |
 | Uptime | 99.9% |
 
 ---
 
-## Milestone 1.1 — Go-to-Market Ready (Неделя 1-2)
+## Milestone 1.1 — Performance & Infrastructure (Неделя 1-2)
 
-| # | Задача | Зона | Статус |
-|---|--------|------|--------|
-| 1.1.1 | SEO-оптимизация страниц курсов: SSR, meta tags, structured data (Course schema) | Architect | 🔴 |
-| 1.1.2 | Social sharing: Open Graph для курсов в Instagram, Facebook, Telegram | Principal | 🔴 |
-| 1.1.3 | Mobile web оптимизация: PWA, responsive, touch gestures | Principal | 🔴 |
-| 1.1.4 | Performance audit: Core Web Vitals зеленая зона для всех страниц | Architect | 🔴 |
-| 1.1.5 | Teacher onboarding flow: guided setup wizard, инструкция по созданию курса | Principal | 🔴 |
-| 1.1.6 | Bulk course import: CSV/JSON → быстрое наполнение каталога | Principal | 🔴 |
+> Устранение bottleneck-ов найденных в Phase 0.7
 
----
-
-## Milestone 1.2 — Trust & Safety (Неделя 2-3)
-
-| # | Задача | Зона | Статус |
-|---|--------|------|--------|
-| 1.2.1 | Teacher verification flow: документы, проверка квалификации, статус verified | Principal | 🔴 |
-| 1.2.2 | Course moderation: AI-проверка контента + ручная очередь | Architect | 🔴 |
-| 1.2.3 | Reviews & ratings: студенты оставляют отзывы о курсах | Principal | 🔴 |
-| 1.2.4 | Reporting: пользователи жалуются на курсы/преподавателей | Principal | 🔴 |
-| 1.2.5 | Fraud detection v1: basic rules (множественные аккаунты, fake reviews) | Architect | 🔴 |
+| # | Задача | Статус |
+|---|--------|--------|
+| 1.1.1 | pg_trgm + GIN индекс на courses (title, description) | 🔴 |
+| 1.1.2 | Redis кэширование: course list, course by id, curriculum | 🔴 |
+| 1.1.3 | PgBouncer перед PostgreSQL (connection pooling) | 🔴 |
+| 1.1.4 | uvicorn workers: 4 per service | 🔴 |
+| 1.1.5 | Cursor-based pagination вместо offset | 🔴 |
+| 1.1.6 | Database indexes: created_at, teacher_id, course_id | 🔴 |
 
 ---
 
-## Milestone 1.3 — Engagement & Retention (Неделя 3-4)
+## Milestone 1.2 — Go-to-Market Ready (Неделя 2-3)
 
-| # | Задача | Зона | Статус |
-|---|--------|------|--------|
-| 1.3.1 | Push notifications: новые уроки, напоминания о прогрессе, новые курсы | Principal | 🔴 |
-| 1.3.2 | Email marketing integration: welcome series, незавершённые курсы | Principal | 🔴 |
-| 1.3.3 | Wishlist / favorites: сохранение курсов на потом | Principal | 🔴 |
-| 1.3.4 | Progress tracking: процент прохождения курса, сертификаты | Principal | 🔴 |
-| 1.3.5 | Student-Teacher Q&A: вопросы к уроку/курсу | Principal | 🔴 |
-
----
-
-## Milestone 1.4 — Teacher Growth Tools (Неделя 4-5)
-
-| # | Задача | Зона | Статус |
-|---|--------|------|--------|
-| 1.4.1 | Teacher dashboard: студенты, просмотры, completion rate, revenue | Principal | 🔴 |
-| 1.4.2 | Промо-инструменты v1: создание скидок, купонов на курсы | Principal | 🔴 |
-| 1.4.3 | Payout system: автоматические выплаты преподавателям | Architect | 🔴 |
-| 1.4.4 | Teacher analytics: какие курсы смотрят, drop-off points, откуда трафик | Principal | 🔴 |
+| # | Задача | Статус |
+|---|--------|--------|
+| 1.2.1 | SEO: SSR для каталога, meta tags, structured data (Course schema) | 🔴 |
+| 1.2.2 | Social sharing: Open Graph для курсов | 🔴 |
+| 1.2.3 | Mobile web: responsive, PWA | 🔴 |
+| 1.2.4 | Core Web Vitals: зелёная зона для всех страниц | 🔴 |
+| 1.2.5 | Teacher onboarding flow: guided wizard по созданию курса | 🔴 |
 
 ---
 
-## Milestone 1.5 — Infrastructure Hardening (Неделя 5-6)
+## Milestone 1.3 — Trust & Safety (Неделя 3-4)
 
-| # | Задача | Зона | Статус |
-|---|--------|------|--------|
-| 1.5.1 | Auto-scaling: HPA для всех stateless сервисов | Architect | 🔴 |
-| 1.5.2 | Database: read replicas для heavy-read endpoints | Architect | 🔴 |
-| 1.5.3 | CDN: настроить правильные cache headers, edge caching для видео | Architect | 🔴 |
-| 1.5.4 | Canary deployments: 5% → 25% → 100% с auto-rollback | Principal | 🔴 |
-| 1.5.5 | Incident response: on-call setup, runbooks, post-mortem template | Architect | 🔴 |
-| 1.5.6 | Load test: 10K concurrent users, identify bottlenecks | Architect | 🔴 |
+| # | Задача | Статус |
+|---|--------|--------|
+| 1.3.1 | Teacher verification: загрузка документов, review queue | 🔴 |
+| 1.3.2 | Course moderation: базовая проверка контента | 🔴 |
+| 1.3.3 | Review moderation: фильтрация спама/оскорблений | 🔴 |
+| 1.3.4 | Reporting: жалобы на курсы/преподавателей | 🔴 |
+| 1.3.5 | Rate limiting на API | 🔴 |
+
+---
+
+## Milestone 1.4 — Engagement & Retention (Неделя 4-5)
+
+| # | Задача | Статус |
+|---|--------|--------|
+| 1.4.1 | Email уведомления: welcome, enrollment, lesson reminders | 🔴 |
+| 1.4.2 | Wishlist / favorites | 🔴 |
+| 1.4.3 | Категории курсов + фильтры в каталоге | 🔴 |
+| 1.4.4 | Сертификат по завершении курса (PDF) | 🔴 |
+| 1.4.5 | JWT refresh tokens | 🔴 |
+| 1.4.6 | Password reset flow | 🔴 |
+
+---
+
+## Milestone 1.5 — Teacher Growth (Неделя 5-6)
+
+| # | Задача | Статус |
+|---|--------|--------|
+| 1.5.1 | Seller App (Next.js): teacher dashboard | 🔴 |
+| 1.5.2 | Аналитика курсов: студенты, completion rate, revenue | 🔴 |
+| 1.5.3 | Stripe/YooKassa интеграция (реальные платежи) | 🔴 |
+| 1.5.4 | Payout: вывод средств для преподавателей | 🔴 |
+| 1.5.5 | Промо v1: купоны, скидки | 🔴 |
+
+---
+
+## Milestone 1.6 — Infrastructure Hardening (Неделя 6-7)
+
+| # | Задача | Статус |
+|---|--------|--------|
+| 1.6.1 | CI/CD: GitHub Actions (lint → test → build → deploy) | 🔴 |
+| 1.6.2 | Staging environment | 🔴 |
+| 1.6.3 | Database backups + restore procedure | 🔴 |
+| 1.6.4 | Structured logging (JSON) | 🔴 |
+| 1.6.5 | Load test: 1K concurrent users | 🔴 |
+| 1.6.6 | Incident response: on-call, runbooks | 🔴 |
 
 ---
 
@@ -82,8 +101,9 @@
 
 - [ ] 100K зарегистрированных пользователей
 - [ ] 1000+ активных преподавателей с курсами
-- [ ] Первые $100K revenue от платных курсов
+- [ ] Реальные платежи работают (Stripe/YooKassa)
 - [ ] 99.9% uptime за последний месяц
-- [ ] NPS > 30 (student), NPS > 40 (teacher)
 - [ ] P95 latency < 300ms для основных endpoints
-- [ ] Zero critical security incidents
+- [ ] Стабильно 500 RPS при load test
+- [ ] CI/CD pipeline работает
+- [ ] Seller App (teacher dashboard) запущен

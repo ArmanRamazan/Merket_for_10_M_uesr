@@ -106,4 +106,4 @@ class Settings(BaseAppSettings):
 
 ## Правило выноса в common
 
-Код выносится в `libs/py/common/` только когда используется в **2+ сервисах**. Все 4 модуля используются и в Identity, и в Course.
+Код выносится в `libs/py/common/` только когда используется в **2+ сервисах**. Все 4 модуля используются во всех 5 сервисах (Identity, Course, Enrollment, Payment, Notification).

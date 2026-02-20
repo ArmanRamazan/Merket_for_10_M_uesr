@@ -1,6 +1,6 @@
 # 05 — Infrastructure & Docker
 
-> Последнее обновление: 2026-02-20
+> Последнее обновление: 2026-02-21
 > Стадия: MVP (Phase 0)
 
 ---
@@ -139,8 +139,12 @@ docker compose -f docker-compose.dev.yml --profile seed up seed
 ```
 
 Скрипт `tools/seed/seed.py` генерирует:
+- **1 admin** (`admin@eduplatform.com` / `password123`) — создаётся через INSERT перед bulk COPY
 - **50,000 пользователей**: 80% students, 20% teachers (из них 70% verified)
 - **100,000 курсов**: привязаны к verified teachers
+- **~35,000 модулей**: 3-5 модулей на курс (первые 10K курсов)
+- **~210,000 уроков**: 3-8 уроков на модуль (первые 10K курсов)
+- **~100,000 отзывов**: рейтинг 1-5 (weighted: 40% пятёрок), обновляет avg_rating/review_count
 - **200,000 записей (enrollments)**: 60% на бесплатные курсы, 40% на платные
 - **50,000 оплат (payments)**: для платных курсов, status=completed
 - Пароль для всех: `password123` (bcrypt hash)
@@ -183,9 +187,9 @@ Locust UI: http://localhost:8089
 
 | User Type | Weight | Действия |
 |-----------|--------|----------|
-| StudentUser | 7 | Browse courses → view detail → enroll (free/paid) |
-| SearchUser | 2 | Search with random queries |
-| TeacherUser | 1 | Login as pre-seeded teacher → create course |
+| StudentUser | 7 | list_courses (5), view_course (3), view_curriculum (3), view_lesson (2), enroll_in_course (2), complete_lesson (1) |
+| SearchUser | 2 | search_courses — ILIKE по random term |
+| TeacherUser | 1 | get_me (2), create_course (1), list_my_courses (1) |
 
 ---
 

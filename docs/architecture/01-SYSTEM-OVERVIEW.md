@@ -1,13 +1,13 @@
 # 01 — Обзор системы
 
-> Последнее обновление: 2026-02-20
+> Последнее обновление: 2026-02-21 (Phase 0.6 + Admin)
 > Стадия: MVP (Phase 0) — до 10K пользователей
 
 ---
 
 ## Что есть сейчас
 
-EduPlatform MVP — учебная платформа с пятью бэкенд-сервисами, фронтендом и инфраструктурой мониторинга/нагрузочного тестирования.
+EduPlatform MVP — учебная платформа с полным циклом обучения. Пять бэкенд-сервисов, фронтенд и инфраструктура мониторинга/нагрузочного тестирования. Три роли: Student, Teacher, Admin. Студент может найти курс, записаться, пройти уроки, отслеживать прогресс, оставить отзыв. Преподаватель может создать курс с модулями и уроками. Администратор верифицирует преподавателей.
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -97,8 +97,8 @@ EduPlatform MVP — учебная платформа с пятью бэкенд
 | Config | pydantic-settings | 2.7+ | Env vars → typed settings |
 | Метрики | prometheus-fastapi-instrumentator | 7.0+ | Автоматические HTTP метрики |
 | Monitoring | Prometheus + Grafana | — | Scrape 5s, dashboards |
-| Load testing | Locust | — | 4 сценария (student, search, teacher, enrollment) |
-| Seed | asyncpg + Faker | — | 50K users + 100K courses + 200K enrollments + 50K payments |
+| Load testing | Locust | — | 3 user types: StudentUser (browse, enroll, curriculum, lessons, progress), SearchUser, TeacherUser |
+| Seed | asyncpg + Faker | — | 1 admin + 50K users, 100K courses, ~35K modules, ~210K lessons, 100K reviews, 50K payments, 200K enrollments |
 | Packages | uv workspace | — | Python монорепа |
 | Docker | Docker Compose | — | Dev (hot reload) + Prod (monitoring) |
 
@@ -108,11 +108,12 @@ EduPlatform MVP — учебная платформа с пятью бэкенд
 
 1. **Database-per-service** — у каждого сервиса своя PostgreSQL (5 БД)
 2. **Clean Architecture** — routes → services → domain ← repositories
-3. **JWT shared secret** — все сервисы валидируют JWT самостоятельно, без обращения к Identity
+3. **JWT shared secret** — все 5 сервисов валидируют JWT самостоятельно, без обращения к Identity
 4. **Клиент-оркестратор** — Frontend оркестрирует вызовы между сервисами (Payment → Enrollment → Notification)
 5. **Намеренные bottleneck-и** — ILIKE без индекса, pool = 5 connections, нет кэша
-6. **Роли в JWT claims** — `role` и `is_verified` передаются в extra_claims токена
+6. **Роли в JWT claims** — `role` (student/teacher/admin) и `is_verified` передаются в extra_claims токена
 7. **Forward-only миграции** — SQL файлы, выполняются при старте сервиса
+8. **Owner check** — teacher может управлять только своими курсами/модулями/уроками (проверка teacher_id)
 
 ---
 
@@ -125,6 +126,4 @@ EduPlatform MVP — учебная платформа с пятью бэкенд
 | Connection pooling tuning | Bottleneck | Когда pool exhaustion в логах |
 | API Gateway | Не нужен для 5 сервисов с прямым доступом | Phase 2 (Rust/Axum) |
 | Event bus (NATS) | Нет межсервисных событий, клиент оркестрирует | Phase 2 |
-| Видео-уроки | MVP scope | Phase 1 |
-| Teacher dashboard | MVP scope | Phase 1 |
 | CI/CD | Локальная разработка | Phase 1 |

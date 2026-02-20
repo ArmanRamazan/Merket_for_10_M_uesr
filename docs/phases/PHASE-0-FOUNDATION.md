@@ -1,12 +1,12 @@
 # Phase 0 — Foundation (MVP на 10K пользователей)
 
-> **Цель:** запустить работающую учебную платформу. Identity + Course + Frontend. Нагрузить Locust-ом, увидеть первые bottleneck-и, зафиксировать baseline.
+> **Цель:** запустить работающую учебную платформу с полным циклом обучения. Студент может найти курс, записаться, пройти уроки, увидеть прогресс, оставить отзыв. Преподаватель может создать курс с уроками и видеть студентов.
 >
 > **Намеренные ограничения:** нет кэша, нет индексов на поиск, маленький connection pool. Это не баги — это будущие точки оптимизации.
 
 ---
 
-## Milestone 0.1 — Инфраструктура и shared libs
+## Milestone 0.1 — Инфраструктура и shared libs ✅
 
 | # | Задача | Статус |
 |---|--------|--------|
@@ -20,7 +20,7 @@
 
 ---
 
-## Milestone 0.2 — Backend сервисы
+## Milestone 0.2 — Backend сервисы ✅
 
 | # | Задача | Статус |
 |---|--------|--------|
@@ -34,7 +34,7 @@
 
 ---
 
-## Milestone 0.3 — Frontend
+## Milestone 0.3 — Frontend ✅
 
 | # | Задача | Статус |
 |---|--------|--------|
@@ -48,19 +48,7 @@
 
 ---
 
-## Milestone 0.4 — Baseline и первые bottleneck-и
-
-| # | Задача | Статус |
-|---|--------|--------|
-| 0.4.1 | Поднять prod stack (docker-compose.prod.yml) | 🔴 Not Started |
-| 0.4.2 | Засеять 50K users + 100K courses | 🔴 Not Started |
-| 0.4.3 | Запустить Locust: 100 users, ramp 10/s, 5 минут | 🔴 Not Started |
-| 0.4.4 | Зафиксировать baseline в Grafana (screenshots) | 🔴 Not Started |
-| 0.4.5 | Найти первый bottleneck (ожидание: ILIKE search) | 🔴 Not Started |
-
----
-
-## Milestone 0.5 — Enrollment + Payment + Notification
+## Milestone 0.5 — Enrollment + Payment + Notification ✅
 
 | # | Задача | Статус |
 |---|--------|--------|
@@ -73,7 +61,102 @@
 | 0.5.7 | Seed: +200K enrollments + 50K payments | ✅ Done |
 | 0.5.8 | Locust: StudentUser enroll task (payment → enrollment) | ✅ Done |
 | 0.5.9 | Unit тесты: enrollment (12) + payment (11) + notification (10) | ✅ Done |
-| 0.5.10 | Architecture docs обновлены (01-05) | ✅ Done |
+| 0.5.10 | Architecture docs обновлены (01-06) | ✅ Done |
+
+---
+
+## Milestone 0.6 — Lessons + Progress + Reviews ✅
+
+> **Цель:** замкнуть цикл обучения. Без этого платформа — каталог пустых карточек.
+
+### 0.6.1 — Контент курса (модули + уроки)
+
+| # | Задача | Статус |
+|---|--------|--------|
+| 0.6.1.1 | SQL: таблицы `modules` и `lessons` в course-db | ✅ Done |
+| 0.6.1.2 | Domain: Module, Lesson dataclasses | ✅ Done |
+| 0.6.1.3 | Repository: CRUD modules + lessons | ✅ Done |
+| 0.6.1.4 | Service: create/update/delete modules + lessons (teacher only, owner check) | ✅ Done |
+| 0.6.1.5 | Routes: POST/PUT/DELETE /courses/:id/modules, POST/PUT/DELETE /modules/:id/lessons | ✅ Done |
+| 0.6.1.6 | GET /courses/:id/curriculum — программа курса (modules + lessons, без content) | ✅ Done |
+| 0.6.1.7 | GET /lessons/:id — полное содержимое урока (markdown + video_url) | ✅ Done |
+| 0.6.1.8 | Unit тесты | ✅ Done |
+
+### 0.6.2 — Прогресс студента
+
+| # | Задача | Статус |
+|---|--------|--------|
+| 0.6.2.1 | SQL: таблица `lesson_progress` в enrollment-db | ✅ Done |
+| 0.6.2.2 | POST /progress/lessons/:id/complete — отметить урок пройденным | ✅ Done |
+| 0.6.2.3 | GET /progress/courses/:id — прогресс (completed / total lessons) | ✅ Done |
+| 0.6.2.4 | Автоматический enrollment.status = completed при 100% | ⏳ Deferred to 0.7 |
+| 0.6.2.5 | Unit тесты | ✅ Done |
+
+### 0.6.3 — Teacher tools (базовые)
+
+| # | Задача | Статус |
+|---|--------|--------|
+| 0.6.3.1 | GET /courses/my — курсы текущего teacher | ✅ Done |
+| 0.6.3.2 | PUT /courses/:id — редактирование курса (owner check) | ✅ Done |
+| 0.6.3.3 | Unit тесты | ✅ Done |
+
+### 0.6.4 — Reviews & Ratings
+
+| # | Задача | Статус |
+|---|--------|--------|
+| 0.6.4.1 | SQL: таблица `reviews` (новый сервис или course-db) | ✅ Done |
+| 0.6.4.2 | POST /reviews — оценка курса (1-5 + текст, только enrolled students) | ✅ Done |
+| 0.6.4.3 | GET /reviews/course/:id — отзывы курса | ✅ Done |
+| 0.6.4.4 | Денормализация: avg_rating + review_count в courses | ✅ Done |
+| 0.6.4.5 | Unit тесты | ✅ Done |
+
+### 0.6.5 — Frontend
+
+| # | Задача | Статус |
+|---|--------|--------|
+| 0.6.5.1 | Страница курса: программа (модули + уроки) | ✅ Done |
+| 0.6.5.2 | Страница урока: markdown render + video embed + кнопка "Завершить" | ✅ Done |
+| 0.6.5.3 | Прогресс-бар на странице курса | ✅ Done |
+| 0.6.5.4 | Teacher: страница "Мои курсы" + кнопка "Добавить модуль/урок" | ✅ Done |
+| 0.6.5.5 | Форма отзыва + список отзывов + средний рейтинг на карточке | ✅ Done |
+
+### 0.6.6 — Seed + Locust + Docs
+
+| # | Задача | Статус |
+|---|--------|--------|
+| 0.6.6.1 | Seed: 3-5 модулей × 5-10 уроков на курс | ✅ Done |
+| 0.6.6.2 | Seed: lesson_progress для enrolled students | ✅ Done |
+| 0.6.6.3 | Seed: reviews + ratings | ✅ Done |
+| 0.6.6.4 | Locust: LessonUser (проходит уроки) | ✅ Done |
+| 0.6.6.5 | Architecture docs обновлены | ✅ Done |
+
+### 0.6.7 — Admin Role + Teacher Verification + UX Fixes
+
+| # | Задача | Статус |
+|---|--------|--------|
+| 0.6.7.1 | Migration 003: admin value в ENUM user_role | ✅ Done |
+| 0.6.7.2 | Domain: UserRole.ADMIN, PendingTeacherResponse | ✅ Done |
+| 0.6.7.3 | Repository: list_unverified_teachers(), set_verified() | ✅ Done |
+| 0.6.7.4 | Service: list_pending_teachers(), verify_teacher() (admin only) | ✅ Done |
+| 0.6.7.5 | Routes: GET /admin/teachers/pending, PATCH /admin/users/{id}/verify | ✅ Done |
+| 0.6.7.6 | Tests: 7 service + 5 route = 12 new (32 total identity) | ✅ Done |
+| 0.6.7.7 | Frontend: admin panel (/admin/teachers), Header admin link | ✅ Done |
+| 0.6.7.8 | Teacher UX: redirect to edit, inline lesson editing, confirm delete, verification banner | ✅ Done |
+| 0.6.7.9 | Student UX: enrollment feedback, mobile sidebar toggle, breadcrumbs, course completion | ✅ Done |
+| 0.6.7.10 | Seed: admin user (admin@eduplatform.com / password123) | ✅ Done |
+| 0.6.7.11 | Architecture docs обновлены | ✅ Done |
+
+---
+
+## Milestone 0.7 — Baseline и первые bottleneck-и 🔴 ← ТЕКУЩИЙ
+
+| # | Задача | Статус |
+|---|--------|--------|
+| 0.7.1 | Поднять prod stack (docker-compose.prod.yml) | ✅ Done |
+| 0.7.2 | Засеять полные данные | ✅ Done |
+| 0.7.3 | Запустить Locust: 100 users, ramp 10/s, 5 минут | ✅ Done |
+| 0.7.4 | Зафиксировать baseline в Grafana (screenshots) | ✅ Done |
+| 0.7.5 | Найти первый bottleneck | ✅ Done |
 
 ---
 
@@ -100,23 +183,35 @@
   └────────┘ └────────┘ └────────┘ └───────┘ └──────────┘
 ```
 
-**Enrollment flow (клиент-оркестратор):**
+**Course Service** теперь также содержит modules + lessons (в той же course-db).
+**Enrollment Service** теперь также содержит lesson_progress (в той же enrollment-db).
+
+**Learning flow (клиент-оркестратор):**
 ```
 Бесплатный:  Student → POST /enrollments → 201
+Платный:     Student → POST /payments → POST /enrollments → POST /notifications
 
-Платный:     Student → POST /payments → 201
-             Student → POST /enrollments {payment_id} → 201
-             Student → POST /notifications → 201
+Обучение:    Student → GET /courses/:id/curriculum → список модулей/уроков
+             Student → GET /lessons/:id → содержимое урока
+             Student → POST /progress/lessons/:id/complete → отметка
+             Student → GET /progress/courses/:id → 85% done
+
+Отзыв:      Student → POST /reviews → {rating: 5, comment: "..."}
 ```
+
+---
 
 ## Ожидаемые bottleneck-и
 
 | При нагрузке | Что сломается | Как увидим | Как починим |
 |-------------|---------------|-----------|-------------|
 | ~50 RPS search | ILIKE full scan на 100K rows | p99 > 500ms в Grafana | pg_trgm + GIN index |
+| ~100 RPS curriculum | JOIN modules + lessons per course | p99 > 300ms | Denormalization / Redis |
 | ~200 RPS | asyncpg pool = 5 connections | 503 errors spike | Pool 20 + PgBouncer |
-| ~500 RPS | Каждый запрос идёт в БД | DB CPU > 80% | Redis кэш (course list, get by id) |
+| ~500 RPS | Каждый запрос идёт в БД | DB CPU > 80% | Redis кэш |
 | ~1000 RPS | Python GIL, 1 worker | CPU 100% на 1 core | uvicorn --workers 4 |
+
+---
 
 ## Критерии завершения Phase 0
 
@@ -125,8 +220,11 @@
 - [x] Студент НЕ может создать курс (403)
 - [x] Студент может записаться на курс (бесплатный и платный)
 - [x] Пять сервисов с отдельными БД
-- [x] Unit тесты проходят
+- [x] Unit тесты проходят (113 тестов: identity 32, course 40, enrollment 20, payment 11, notification 10)
 - [x] Мониторинг (Prometheus + Grafana) настроен
 - [x] Locust сценарии готовы
+- [x] **Студент может пройти курс: уроки → прогресс → completion**
+- [x] **Преподаватель может добавить уроки в курс**
+- [x] **Курс имеет рейтинг и отзывы**
 - [ ] Baseline метрики зафиксированы
 - [ ] Первый bottleneck найден и задокументирован

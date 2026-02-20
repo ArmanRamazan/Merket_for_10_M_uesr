@@ -14,7 +14,7 @@ MVP (10K) → Оптимизация (100K) → Масштабирование (
 
 | Стадия | Пользователи | Суть | Как понять что пора двигаться дальше |
 |--------|-------------|------|--------------------------------------|
-| MVP | до 10K | Работающий продукт, 2 сервиса, без оптимизаций | Locust показывает деградацию при ~50-100 RPS |
+| MVP | до 10K | Работающий продукт, полный цикл обучения | Locust показывает деградацию при ~50-100 RPS |
 | Оптимизация | 10K → 100K | Индексы, кэш, connection pooling, profiling | Стабильно держит 500 RPS, p99 < 200ms |
 | Масштабирование | 100K → 1M | Rust gateway, event bus, read replicas, Meilisearch | Стабильно держит 5K RPS, горизонтальное масштабирование |
 | Платформа | 1M → 10M | Sharding, multi-region, видео, live streaming | 50K+ RPS, multi-region, 99.99% uptime |
@@ -35,57 +35,98 @@ MVP (10K) → Оптимизация (100K) → Масштабирование (
 | 08 | [Монорепа и DX](./08-MONOREPO-DX.md) | Build tools, CI/CD, testing strategy |
 | 09 | [Observability](./09-OBSERVABILITY.md) | SLO, метрики, алерты |
 | 10 | [Frontend](./10-FRONTEND.md) | Next.js, UI Kit, performance budgets |
+| 11 | [AI Agent Standards](./11-AI-AGENT-STANDARDS.md) | MCP, context engineering, AI safety |
 
 ---
 
 ## MVP — до 10K пользователей
 
-> **Цель:** работающий продукт с минимальным набором фич. Намеренно без оптимизаций, чтобы bottleneck-и проявились при нагрузке.
+### Phase 0.5 — Скелет ✅ DONE
 
-### Инфраструктура
-
-| Задача | Статус |
-|--------|--------|
-| uv workspace (Python) | ✅ Done |
-| Docker Compose: dev (hot reload) + prod (monitoring) | ✅ Done |
-| Prometheus + Grafana (RPS, latency, errors) | ✅ Done |
-| Locust сценарии (student, search, teacher) | ✅ Done |
-| Seed script (50K users + 100K courses) | ✅ Done |
-
-### Backend
+> **Цель:** работающий каркас с auth, browsing, enrollment, payment, notifications.
 
 | Задача | Статус |
 |--------|--------|
-| Shared library: config, errors (ForbiddenError), security (JWT + extra_claims), database | ✅ Done |
-| Identity Service: register (с role), login, GET /me (role + is_verified) | ✅ Done |
-| Course Service: CRUD courses, ILIKE search, role-based POST | ✅ Done |
-| Unit тесты: identity + course | ✅ Done |
-| Database-per-service (identity-db, course-db) | ✅ Done |
+| uv workspace (Python) | ✅ |
+| Docker Compose: dev (hot reload) + prod (monitoring) | ✅ |
+| Prometheus + Grafana (RPS, latency, errors) | ✅ |
+| Locust сценарии (student, search, teacher, enrollment) | ✅ |
+| Seed script (50K users + 100K courses + 200K enrollments + 50K payments) | ✅ |
+| Shared library: config, errors, security (JWT), database (asyncpg) | ✅ |
+| Identity Service: register, login, GET /me (role + is_verified) | ✅ |
+| Course Service: CRUD, ILIKE search, role-based POST | ✅ |
+| Enrollment Service: POST /enrollments, GET /me, GET /count | ✅ |
+| Payment Service: POST /payments (mock), GET /me, GET /:id | ✅ |
+| Notification Service: POST, GET /me, PATCH /read | ✅ |
+| Buyer Frontend: каталог, поиск, enrollment, notifications | ✅ |
+| Unit тесты: 68 тестов по 5 сервисам (→ 113 с admin) | ✅ |
 
-### Frontend
+**Результат:** Полный flow — регистрация → поиск → запись → оплата → уведомление. Но курс = пустая карточка.
 
-| Задача | Статус |
-|--------|--------|
-| Next.js 15 buyer app (Tailwind CSS 4) | ✅ Done |
-| Каталог курсов с поиском | ✅ Done |
-| Регистрация с выбором роли / Логин | ✅ Done |
-| Детали курса | ✅ Done |
-| Создание курса (только verified teachers) | ✅ Done |
+---
 
-### MVP — осталось
+### Phase 0.6 — Real MVP ✅ DONE
 
-| Задача | Статус |
-|--------|--------|
-| Прогнать Locust, снять baseline метрики | 🔴 Not Started |
-| Зафиксировать первые bottleneck-и в Grafana | 🔴 Not Started |
-| Enrollment Service: запись на курс | 🔴 Not Started |
-| Notifications: email подтверждения | 🔴 Not Started |
+> **Цель:** замкнуть цикл обучения. Студент может реально учиться, преподаватель видит результат.
+
+| # | Задача | Статус |
+|---|--------|--------|
+| **Контент** | | |
+| 0.6.1 | Модули и уроки внутри курса (Course Service: modules + lessons) | ✅ |
+| 0.6.2 | CRUD модулей и уроков (teacher) | ✅ |
+| 0.6.3 | Программа курса (GET /courses/:id/curriculum) | ✅ |
+| 0.6.4 | Страница урока (GET /lessons/:id — markdown + video embed) | ✅ |
+| **Прогресс** | | |
+| 0.6.5 | Отметка урока как пройденного (POST /progress/lessons/:id/complete) | ✅ |
+| 0.6.6 | Прогресс по курсу (GET /progress/courses/:id — % completion) | ✅ |
+| 0.6.7 | Автоматический completion при 100% | ⏳ Deferred |
+| **Teacher tools** | | |
+| 0.6.8 | GET /courses/my — курсы teacher с enrollment count | ✅ |
+| 0.6.9 | PUT /courses/:id — редактирование курса | ✅ |
+| 0.6.10 | Frontend: teacher dashboard page | ✅ |
+| **Reviews** | | |
+| 0.6.11 | POST /reviews + GET /reviews/course/:id (рейтинг 1-5 + текст) | ✅ |
+| 0.6.12 | Средний рейтинг на карточке курса | ✅ |
+| **Frontend** | | |
+| 0.6.13 | Страница урока с markdown-рендером и video embed | ✅ |
+| 0.6.14 | Прогресс-бар на странице курса | ✅ |
+| 0.6.15 | Форма отзыва + список отзывов | ✅ |
+| 0.6.16 | Teacher dashboard: мои курсы, кнопка "добавить урок" | ✅ |
+| **Инфра** | | |
+| 0.6.17 | Seed: модули + уроки для 100K courses | ✅ |
+| 0.6.18 | Seed: прогресс + reviews | ✅ |
+| 0.6.19 | Обновить architecture docs | ✅ |
+| **Admin & UX** | | |
+| 0.6.20 | Admin role + teacher verification API (Identity Service) | ✅ |
+| 0.6.21 | Admin panel frontend (/admin/teachers) | ✅ |
+| 0.6.22 | Teacher UX: redirect после создания, inline-редактирование уроков, баннер верификации | ✅ |
+| 0.6.23 | Student UX: фидбек после записи, мобильный sidebar, breadcrumbs, кнопка завершения | ✅ |
+| 0.6.24 | Seed: admin user (admin@eduplatform.com) | ✅ |
+
+**Результат:** 32 теста Identity, 101+ тестов всего. Полный цикл: admin верифицирует teacher → teacher создаёт курс → student записывается → проходит уроки → отзыв.
+
+---
+
+### Phase 0.7 — Baseline & Bottlenecks 🔴
+
+> **Цель:** снять baseline метрики на Real MVP и найти первые bottleneck-и.
+
+| # | Задача | Статус |
+|---|--------|--------|
+| 0.7.1 | Поднять prod stack (docker-compose.prod.yml) | 🔴 |
+| 0.7.2 | Засеять полные данные (users + courses + lessons + enrollments + reviews) | 🔴 |
+| 0.7.3 | Запустить Locust: 100 users, ramp 10/s, 5 минут | 🔴 |
+| 0.7.4 | Зафиксировать baseline в Grafana (screenshots) | 🔴 |
+| 0.7.5 | Найти первый bottleneck (ожидание: ILIKE search или lesson queries) | 🔴 |
+
+---
 
 ### Ожидаемые bottleneck-и на MVP
 
 | Нагрузка | Проблема | Симптом | Решение (следующая стадия) |
 |----------|----------|---------|--------------------------|
 | ~50 RPS search | ILIKE full table scan | p99 > 500ms | pg_trgm + GIN index |
+| ~100 RPS lessons | JOIN modules + lessons per course | p99 > 300ms | Denormalization / Redis cache |
 | ~200 RPS | Connection pool = 5 | 503 errors | Увеличить pool / PgBouncer |
 | ~500 RPS | Нет кэша, повторные reads | High DB CPU | Redis кэширование |
 | ~1000 RPS | Python GIL, single process | CPU 100% | Больше workers / Rust gateway |
@@ -94,12 +135,12 @@ MVP (10K) → Оптимизация (100K) → Масштабирование (
 
 ## Оптимизация — 10K → 100K пользователей
 
-> **Цель:** устранить bottleneck-и MVP. Те же 2 сервиса, но с оптимизациями. Всё ещё Python, всё ещё монорепа.
+> **Цель:** устранить bottleneck-и MVP. Те же сервисы, но с оптимизациями.
 
 | Задача | Статус | Когда делать |
 |--------|--------|-------------|
 | pg_trgm + GIN индекс на courses (title, description) | 🔴 | Когда search p99 > 300ms |
-| Redis кэширование: course list, course by id | 🔴 | Когда DB CPU > 70% на reads |
+| Redis кэширование: course list, course by id, curriculum | 🔴 | Когда DB CPU > 70% на reads |
 | PgBouncer перед PostgreSQL | 🔴 | Когда connection pool exhaustion в логах |
 | uvicorn workers: 1 → 4 → auto | 🔴 | Когда CPU одного ядра = 100% |
 | Pagination: cursor-based вместо offset | 🔴 | Когда offset > 10000 тормозит |
@@ -115,23 +156,21 @@ MVP (10K) → Оптимизация (100K) → Масштабирование (
 
 ## Масштабирование — 100K → 1M пользователей
 
-> **Цель:** выход за пределы одного Python процесса. Добавляем Rust для hot paths, event-driven архитектуру, полнотекстовый поиск.
+> **Цель:** выход за пределы одного Python процесса.
 
 | Задача | Статус | Зачем |
 |--------|--------|-------|
-| API Gateway (Rust/Axum) | 🔴 | Auth middleware, rate limiting, routing — единая точка входа |
-| Search Service (Rust) + Meilisearch | 🔴 | ILIKE не масштабируется, нужен полнотекстовый поиск |
-| NATS JetStream: event bus | 🔴 | Асинхронная связь между сервисами (user.created, course.published) |
+| API Gateway (Rust/Axum) | 🔴 | Auth middleware, rate limiting, routing |
+| Search Service (Rust) + Meilisearch | 🔴 | ILIKE не масштабируется |
+| NATS JetStream: event bus | 🔴 | Асинхронная связь между сервисами |
 | PostgreSQL read replicas | 🔴 | Разделение read/write нагрузки |
-| Enrollment Service (Python) | 🔴 | Запись на курс, прогресс |
-| Payment integration (Stripe) | 🔴 | Оплата курсов |
-| Notifications Service | 🔴 | Email, push, event-driven |
-| Teacher Dashboard (Next.js) | 🔴 | Управление курсами, аналитика |
+| Video platform: upload → transcode → stream | 🔴 | Замена YouTube/Vimeo ссылок |
+| Teacher Dashboard (Next.js — seller app) | 🔴 | Полноценное управление курсами |
 | Protobuf контракты | 🔴 | Source of truth для межсервисного API |
 | CI/CD: GitHub Actions | 🔴 | Lint → test → build → deploy |
-| Kubernetes manifests | 🔴 | Auto-scaling, health checks, rolling deploys |
+| Kubernetes manifests | 🔴 | Auto-scaling, rolling deploys |
 
-**Критерий перехода:** 5K RPS, горизонтальное масштабирование, event-driven, все сервисы independent deploy.
+**Критерий перехода:** 5K RPS, горизонтальное масштабирование, event-driven.
 
 ---
 
@@ -143,16 +182,15 @@ MVP (10K) → Оптимизация (100K) → Масштабирование (
 |--------|--------|-------|
 | PostgreSQL → Citus (sharding) | 🔴 | Одна БД не вытянет 10M users |
 | Multi-region active-active | 🔴 | Latency для юзеров в разных регионах |
-| Video platform: upload, transcode, stream | 🔴 | Video-first learning |
 | Live streaming lessons | 🔴 | Real-time обучение |
-| Рекомендации (ML) | 🔴 | Персонализация каталога курсов |
+| Рекомендации (ML) | 🔴 | Персонализация каталога |
 | ClickHouse для аналитики | 🔴 | Real-time dashboards для преподавателей |
 | Teacher API + webhooks | 🔴 | Платформенная экосистема |
 | Mobile PWA / native apps | 🔴 | 80% трафика — мобильный |
 | CDN: multi-CDN strategy | 🔴 | Видео и статика по всему миру |
-| Chaos engineering | 🔴 | Graceful degradation, circuit breakers |
+| Chaos engineering | 🔴 | Graceful degradation |
 
-**Критерий завершения:** 50K+ RPS, multi-region, 99.99% uptime, < 20 инженеров.
+**Критерий завершения:** 50K+ RPS, multi-region, 99.99% uptime.
 
 ---
 
