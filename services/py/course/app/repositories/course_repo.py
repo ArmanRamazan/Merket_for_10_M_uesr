@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import base64
+from datetime import datetime
 from decimal import Decimal
 from uuid import UUID
 
@@ -8,6 +10,16 @@ import asyncpg
 from app.domain.course import Course, CourseLevel
 
 _COLUMNS = "id, teacher_id, title, description, is_free, price, duration_minutes, level, created_at, avg_rating, review_count"
+
+
+def _encode_cursor(created_at: datetime, id: UUID) -> str:
+    return base64.urlsafe_b64encode(f"{created_at.isoformat()}|{id}".encode()).decode()
+
+
+def _decode_cursor(cursor: str) -> tuple[datetime, UUID]:
+    raw = base64.urlsafe_b64decode(cursor.encode()).decode()
+    ts, uid = raw.split("|", 1)
+    return datetime.fromisoformat(ts), UUID(uid)
 
 
 class CourseRepository:
@@ -57,6 +69,29 @@ class CourseRepository:
             count = await conn.fetchval("SELECT count(*) FROM courses")
         return [self._to_entity(r) for r in rows], count
 
+    async def list_cursor(
+        self, limit: int = 20, cursor: str | None = None
+    ) -> tuple[list[Course], int, str | None]:
+        async with self._pool.acquire() as conn:
+            if cursor:
+                ts, uid = _decode_cursor(cursor)
+                rows = await conn.fetch(
+                    f"""SELECT {_COLUMNS} FROM courses
+                        WHERE (created_at, id) < ($1, $2)
+                        ORDER BY created_at DESC, id DESC
+                        LIMIT $3""",
+                    ts, uid, limit,
+                )
+            else:
+                rows = await conn.fetch(
+                    f"SELECT {_COLUMNS} FROM courses ORDER BY created_at DESC, id DESC LIMIT $1",
+                    limit,
+                )
+            count = await conn.fetchval("SELECT count(*) FROM courses")
+        items = [self._to_entity(r) for r in rows]
+        next_cur = _encode_cursor(items[-1].created_at, items[-1].id) if len(items) == limit else None
+        return items, count, next_cur
+
     async def search(self, query: str, limit: int = 20, offset: int = 0) -> tuple[list[Course], int]:
         """Search courses by title/description using ILIKE (accelerated by pg_trgm GIN index)."""
         async with self._pool.acquire() as conn:
@@ -77,6 +112,36 @@ class CourseRepository:
             )
         return [self._to_entity(r) for r in rows], count
 
+    async def search_cursor(
+        self, query: str, limit: int = 20, cursor: str | None = None
+    ) -> tuple[list[Course], int, str | None]:
+        async with self._pool.acquire() as conn:
+            pattern = f"%{query}%"
+            if cursor:
+                ts, uid = _decode_cursor(cursor)
+                rows = await conn.fetch(
+                    f"""SELECT {_COLUMNS} FROM courses
+                        WHERE (title ILIKE $1 OR description ILIKE $1)
+                          AND (created_at, id) < ($2, $3)
+                        ORDER BY created_at DESC, id DESC
+                        LIMIT $4""",
+                    pattern, ts, uid, limit,
+                )
+            else:
+                rows = await conn.fetch(
+                    f"""SELECT {_COLUMNS} FROM courses
+                        WHERE title ILIKE $1 OR description ILIKE $1
+                        ORDER BY created_at DESC, id DESC LIMIT $2""",
+                    pattern, limit,
+                )
+            count = await conn.fetchval(
+                "SELECT count(*) FROM courses WHERE title ILIKE $1 OR description ILIKE $1",
+                pattern,
+            )
+        items = [self._to_entity(r) for r in rows]
+        next_cur = _encode_cursor(items[-1].created_at, items[-1].id) if len(items) == limit else None
+        return items, count, next_cur
+
     async def list_by_teacher(
         self, teacher_id: UUID, limit: int = 20, offset: int = 0
     ) -> tuple[list[Course], int]:
@@ -92,6 +157,32 @@ class CourseRepository:
                 teacher_id,
             )
         return [self._to_entity(r) for r in rows], count
+
+    async def list_by_teacher_cursor(
+        self, teacher_id: UUID, limit: int = 20, cursor: str | None = None
+    ) -> tuple[list[Course], int, str | None]:
+        async with self._pool.acquire() as conn:
+            if cursor:
+                ts, uid = _decode_cursor(cursor)
+                rows = await conn.fetch(
+                    f"""SELECT {_COLUMNS} FROM courses
+                        WHERE teacher_id = $1 AND (created_at, id) < ($2, $3)
+                        ORDER BY created_at DESC, id DESC
+                        LIMIT $4""",
+                    teacher_id, ts, uid, limit,
+                )
+            else:
+                rows = await conn.fetch(
+                    f"SELECT {_COLUMNS} FROM courses WHERE teacher_id = $1 ORDER BY created_at DESC, id DESC LIMIT $2",
+                    teacher_id, limit,
+                )
+            count = await conn.fetchval(
+                "SELECT count(*) FROM courses WHERE teacher_id = $1",
+                teacher_id,
+            )
+        items = [self._to_entity(r) for r in rows]
+        next_cur = _encode_cursor(items[-1].created_at, items[-1].id) if len(items) == limit else None
+        return items, count, next_cur
 
     async def update(self, course_id: UUID, **fields: object) -> Course | None:
         sets: list[str] = []

@@ -4,9 +4,11 @@ from collections.abc import AsyncIterator
 import asyncpg
 from fastapi import FastAPI
 from prometheus_fastapi_instrumentator import Instrumentator
+from redis.asyncio import Redis
 
 from common.database import create_pool, update_pool_metrics
 from common.errors import register_error_handlers
+from app.cache import CourseCache
 from app.config import Settings
 from app.repositories.course_repo import CourseRepository
 from app.repositories.module_repo import ModuleRepository
@@ -24,6 +26,7 @@ from app.routes.reviews import router as reviews_router
 app_settings = Settings()
 
 _pool: asyncpg.Pool | None = None
+_redis: Redis | None = None
 _course_service: CourseService | None = None
 _module_service: ModuleService | None = None
 _lesson_service: LessonService | None = None
@@ -52,7 +55,7 @@ def get_review_service() -> ReviewService:
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
-    global _pool, _course_service, _module_service, _lesson_service, _review_service
+    global _pool, _redis, _course_service, _module_service, _lesson_service, _review_service
 
     _pool = await create_pool(
         app_settings.database_url,
@@ -69,17 +72,23 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
             await conn.execute(f.read())
         with open("migrations/004_search_index.sql") as f:
             await conn.execute(f.read())
+        with open("migrations/005_indexes.sql") as f:
+            await conn.execute(f.read())
+
+    _redis = Redis.from_url(app_settings.redis_url)
+    _cache = CourseCache(_redis)
 
     course_repo = CourseRepository(_pool)
     module_repo = ModuleRepository(_pool)
     lesson_repo = LessonRepository(_pool)
     review_repo = ReviewRepository(_pool)
 
-    _course_service = CourseService(course_repo, module_repo, lesson_repo)
-    _module_service = ModuleService(module_repo, course_repo)
-    _lesson_service = LessonService(lesson_repo, module_repo, course_repo)
-    _review_service = ReviewService(review_repo, course_repo)
+    _course_service = CourseService(course_repo, module_repo, lesson_repo, cache=_cache)
+    _module_service = ModuleService(module_repo, course_repo, cache=_cache)
+    _lesson_service = LessonService(lesson_repo, module_repo, course_repo, cache=_cache)
+    _review_service = ReviewService(review_repo, course_repo, cache=_cache)
     yield
+    await _redis.aclose()
     await _pool.close()
 
 

@@ -68,6 +68,7 @@ class CourseResponse(BaseModel):
 class CourseListResponse(BaseModel):
     items: list[CourseResponse]
     total: int
+    next_cursor: str | None = None
 
 
 class CurriculumModule(BaseModel):

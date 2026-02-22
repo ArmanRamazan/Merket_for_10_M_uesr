@@ -58,7 +58,18 @@ async def list_courses(
     q: Annotated[str | None, Query()] = None,
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
     offset: Annotated[int, Query(ge=0)] = 0,
+    cursor: Annotated[str | None, Query()] = None,
 ) -> CourseListResponse:
+    if cursor is not None:
+        if q:
+            items, total, next_cursor = await service.search_cursor(q, limit, cursor)
+        else:
+            items, total, next_cursor = await service.list_cursor(limit, cursor)
+        return CourseListResponse(
+            items=[_to_response(c) for c in items],
+            total=total,
+            next_cursor=next_cursor,
+        )
     if q:
         items, total = await service.search(q, limit, offset)
     else:
@@ -75,7 +86,17 @@ async def list_my_courses(
     service: Annotated[CourseService, Depends(_get_course_service)],
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
     offset: Annotated[int, Query(ge=0)] = 0,
+    cursor: Annotated[str | None, Query()] = None,
 ) -> CourseListResponse:
+    if cursor is not None:
+        items, total, next_cursor = await service.list_my_cursor(
+            claims["user_id"], limit, cursor
+        )
+        return CourseListResponse(
+            items=[_to_response(c) for c in items],
+            total=total,
+            next_cursor=next_cursor,
+        )
     items, total = await service.list_my(claims["user_id"], limit, offset)
     return CourseListResponse(
         items=[_to_response(c) for c in items],

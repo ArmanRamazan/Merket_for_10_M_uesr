@@ -142,19 +142,19 @@ def mock_review_repo():
 
 @pytest.fixture
 def course_service(mock_repo, mock_module_repo, mock_lesson_repo):
-    return CourseService(repo=mock_repo, module_repo=mock_module_repo, lesson_repo=mock_lesson_repo)
+    return CourseService(repo=mock_repo, module_repo=mock_module_repo, lesson_repo=mock_lesson_repo, cache=None)
 
 
 @pytest.fixture
 def module_service(mock_module_repo, mock_repo):
-    return ModuleService(repo=mock_module_repo, course_repo=mock_repo)
+    return ModuleService(repo=mock_module_repo, course_repo=mock_repo, cache=None)
 
 
 @pytest.fixture
 def lesson_service(mock_lesson_repo, mock_module_repo, mock_repo):
-    return LessonService(repo=mock_lesson_repo, module_repo=mock_module_repo, course_repo=mock_repo)
+    return LessonService(repo=mock_lesson_repo, module_repo=mock_module_repo, course_repo=mock_repo, cache=None)
 
 
 @pytest.fixture
 def review_service(mock_review_repo, mock_repo):
-    return ReviewService(repo=mock_review_repo, course_repo=mock_repo)
+    return ReviewService(repo=mock_review_repo, course_repo=mock_repo, cache=None)

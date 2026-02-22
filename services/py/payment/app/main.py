@@ -36,6 +36,8 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     async with _pool.acquire() as conn:
         with open("migrations/001_payments.sql") as f:
             await conn.execute(f.read())
+        with open("migrations/002_indexes.sql") as f:
+            await conn.execute(f.read())
 
     repo = PaymentRepository(_pool)
     _payment_service = PaymentService(repo)

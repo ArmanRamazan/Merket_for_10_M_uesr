@@ -178,13 +178,13 @@ MVP (10K) ✅ → Оптимизация (100K) ← мы здесь → Масш
 
 ### Phase 1.1 — Caching & Indexes
 
-> Снижение нагрузки на БД. Делать после Phase 1.0 и повторного замера.
+> Снижение нагрузки на БД. FK-индексы, Redis cache-aside, cursor pagination.
 
-| # | Задача | Когда делать | Статус |
+| # | Задача | Обоснование | Статус |
 |---|--------|-------------|--------|
-| 1.1.1 | Redis кэширование: course list, course by id, curriculum | Когда DB reads остаются bottleneck после 1.0 | 🔴 |
-| 1.1.2 | Database indexes: teacher_id, created_at, course_id (enrollments) | Когда slow queries видны в логах/Grafana | 🔴 |
-| 1.1.3 | Cursor-based pagination вместо offset | Когда offset > 10K тормозит | 🔴 |
+| 1.1.1 | FK indexes: teacher_id, course_id, module_id, student_id, user_id (все сервисы) | PostgreSQL не создаёт индексы на FK → full table scan | ✅ |
+| 1.1.2 | Redis кэширование: course by id, curriculum (cache-aside, TTL 5 min) | Снижение DB reads для горячих данных | ✅ |
+| 1.1.3 | Cursor-based pagination (keyset) для courses list, search, my | Offset > 10K сканирует и отбрасывает строки | ✅ |
 | 1.1.4 | Перезамерить: Locust 200 users, 5 min | Валидация | 🔴 |
 
 **Критерий:** 200 RPS, p99 < 100ms, DB CPU < 50%.

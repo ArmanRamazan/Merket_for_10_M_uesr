@@ -4,6 +4,7 @@ from decimal import Decimal
 from uuid import UUID
 
 from common.errors import ForbiddenError, NotFoundError
+from app.cache import CourseCache
 from app.domain.course import Course, CourseLevel, CourseResponse, CurriculumModule, CurriculumResponse
 from app.domain.lesson import LessonResponse
 from app.repositories.course_repo import CourseRepository
@@ -17,10 +18,12 @@ class CourseService:
         repo: CourseRepository,
         module_repo: ModuleRepository | None = None,
         lesson_repo: LessonRepository | None = None,
+        cache: CourseCache | None = None,
     ) -> None:
         self._repo = repo
         self._module_repo = module_repo
         self._lesson_repo = lesson_repo
+        self._cache = cache
 
     async def create(
         self,
@@ -43,9 +46,42 @@ class CourseService:
         )
 
     async def get(self, course_id: UUID) -> Course:
+        if self._cache:
+            cached = await self._cache.get_course(course_id)
+            if cached:
+                return Course(
+                    id=UUID(cached["id"]),
+                    teacher_id=UUID(cached["teacher_id"]),
+                    title=cached["title"],
+                    description=cached["description"],
+                    is_free=cached["is_free"],
+                    price=Decimal(cached["price"]) if cached["price"] is not None else None,
+                    duration_minutes=cached["duration_minutes"],
+                    level=CourseLevel(cached["level"]),
+                    created_at=cached["created_at"],
+                    avg_rating=Decimal(cached["avg_rating"]) if cached.get("avg_rating") is not None else None,
+                    review_count=cached.get("review_count", 0),
+                )
+
         course = await self._repo.get_by_id(course_id)
         if not course:
             raise NotFoundError("Course not found")
+
+        if self._cache:
+            await self._cache.set_course(course_id, {
+                "id": str(course.id),
+                "teacher_id": str(course.teacher_id),
+                "title": course.title,
+                "description": course.description,
+                "is_free": course.is_free,
+                "price": str(course.price) if course.price is not None else None,
+                "duration_minutes": course.duration_minutes,
+                "level": course.level.value,
+                "created_at": course.created_at.isoformat(),
+                "avg_rating": str(course.avg_rating) if course.avg_rating is not None else None,
+                "review_count": course.review_count,
+            })
+
         return course
 
     async def list(self, limit: int = 20, offset: int = 0) -> tuple[list[Course], int]:
@@ -58,6 +94,21 @@ class CourseService:
         self, teacher_id: UUID, limit: int = 20, offset: int = 0
     ) -> tuple[list[Course], int]:
         return await self._repo.list_by_teacher(teacher_id, limit, offset)
+
+    async def list_cursor(
+        self, limit: int = 20, cursor: str | None = None
+    ) -> tuple[list[Course], int, str | None]:
+        return await self._repo.list_cursor(limit, cursor)
+
+    async def search_cursor(
+        self, query: str, limit: int = 20, cursor: str | None = None
+    ) -> tuple[list[Course], int, str | None]:
+        return await self._repo.search_cursor(query, limit, cursor)
+
+    async def list_my_cursor(
+        self, teacher_id: UUID, limit: int = 20, cursor: str | None = None
+    ) -> tuple[list[Course], int, str | None]:
+        return await self._repo.list_by_teacher_cursor(teacher_id, limit, cursor)
 
     async def update(
         self,
@@ -77,9 +128,16 @@ class CourseService:
         updated = await self._repo.update(course_id, **fields)
         if not updated:
             raise NotFoundError("Course not found")
+        if self._cache:
+            await self._cache.invalidate_course(course_id)
         return updated
 
     async def get_curriculum(self, course_id: UUID) -> CurriculumResponse:
+        if self._cache:
+            cached = await self._cache.get_curriculum(course_id)
+            if cached:
+                return CurriculumResponse(**cached)
+
         course = await self._repo.get_by_id(course_id)
         if not course:
             raise NotFoundError("Course not found")
@@ -131,8 +189,13 @@ class CourseService:
             review_count=course.review_count,
         )
 
-        return CurriculumResponse(
+        result = CurriculumResponse(
             course=course_resp,
             modules=curriculum_modules,
             total_lessons=total_lessons,
         )
+
+        if self._cache:
+            await self._cache.set_curriculum(course_id, result.model_dump(mode="json"))
+
+        return result

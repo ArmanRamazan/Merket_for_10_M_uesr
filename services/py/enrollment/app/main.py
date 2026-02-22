@@ -47,6 +47,8 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
             await conn.execute(f.read())
         with open("migrations/002_lesson_progress.sql") as f:
             await conn.execute(f.read())
+        with open("migrations/003_indexes.sql") as f:
+            await conn.execute(f.read())
 
     enrollment_repo = EnrollmentRepository(_pool)
     progress_repo = ProgressRepository(_pool)

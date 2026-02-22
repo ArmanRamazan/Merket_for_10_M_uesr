@@ -36,6 +36,8 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     async with _pool.acquire() as conn:
         with open("migrations/001_notifications.sql") as f:
             await conn.execute(f.read())
+        with open("migrations/002_indexes.sql") as f:
+            await conn.execute(f.read())
 
     repo = NotificationRepository(_pool)
     _notification_service = NotificationService(repo)
