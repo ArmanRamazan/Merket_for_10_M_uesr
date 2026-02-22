@@ -26,7 +26,7 @@ TEACHER_VERIFIED_RATIO = 0.7
 
 fake = Faker()
 # Pre-hash a single password for all seed users (bcrypt is slow, we don't need unique hashes for testing)
-SEED_PASSWORD_HASH = "$2b$12$LJ3m4ys3Lk0TSwHCbmQ0oOzHPCFDMBSVOGwpMkgiMfOFMkyNrtfjO"
+SEED_PASSWORD_HASH = "$2b$12$UATV7vr3iDCYLCAvv2bqquAgxLOUlKmIrXDGcowenuwxvFT0z.7Oa"
 
 
 async def seed_users(pool: asyncpg.Pool) -> tuple[list[str], list[str], list[str]]:

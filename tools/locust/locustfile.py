@@ -14,15 +14,6 @@ SEARCH_TERMS = [
     "complete", "advanced", "practical", "beginner", "professional",
 ]
 
-_user_counter = 0
-
-
-def _next_user_id() -> int:
-    global _user_counter
-    _user_counter += 1
-    return _user_counter
-
-
 class StudentUser(HttpUser):
     """70% of traffic — browse courses, view details, enroll, view lessons, complete."""
 
@@ -182,7 +173,7 @@ class TeacherUser(HttpUser):
 
     def on_start(self) -> None:
         # Login as a pre-seeded verified teacher
-        uid = random.randint(0, 6999)  # first 7000 users are verified teachers (10000 teachers * 0.7)
+        uid = random.randint(0, 9999)  # first 10000 users are teachers (~70% verified)
         email = f"user{uid}@example.com"
         password = "password123"
 

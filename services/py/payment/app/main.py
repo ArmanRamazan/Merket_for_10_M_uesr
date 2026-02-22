@@ -27,7 +27,11 @@ def get_payment_service() -> PaymentService:
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     global _pool, _payment_service
 
-    _pool = await create_pool(app_settings.database_url)
+    _pool = await create_pool(
+        app_settings.database_url,
+        min_size=app_settings.db_pool_min_size,
+        max_size=app_settings.db_pool_max_size,
+    )
 
     async with _pool.acquire() as conn:
         with open("migrations/001_payments.sql") as f:

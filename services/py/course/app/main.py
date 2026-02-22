@@ -54,7 +54,11 @@ def get_review_service() -> ReviewService:
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
     global _pool, _course_service, _module_service, _lesson_service, _review_service
 
-    _pool = await create_pool(app_settings.database_url)
+    _pool = await create_pool(
+        app_settings.database_url,
+        min_size=app_settings.db_pool_min_size,
+        max_size=app_settings.db_pool_max_size,
+    )
 
     async with _pool.acquire() as conn:
         with open("migrations/001_courses.sql") as f:
@@ -62,6 +66,8 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         with open("migrations/002_modules_lessons.sql") as f:
             await conn.execute(f.read())
         with open("migrations/003_reviews.sql") as f:
+            await conn.execute(f.read())
+        with open("migrations/004_search_index.sql") as f:
             await conn.execute(f.read())
 
     course_repo = CourseRepository(_pool)

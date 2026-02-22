@@ -58,7 +58,7 @@ class CourseRepository:
         return [self._to_entity(r) for r in rows], count
 
     async def search(self, query: str, limit: int = 20, offset: int = 0) -> tuple[list[Course], int]:
-        """Intentionally uses ILIKE without index — bottleneck for load testing."""
+        """Search courses by title/description using ILIKE (accelerated by pg_trgm GIN index)."""
         async with self._pool.acquire() as conn:
             pattern = f"%{query}%"
             rows = await conn.fetch(
