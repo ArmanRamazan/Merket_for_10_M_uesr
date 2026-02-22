@@ -92,10 +92,10 @@ eduplatform/
 
 ### Local Development
 - [ ] 🔴 `just dev` — поднять все нужные сервисы локально за 1 команду
-- [ ] 🔴 Docker Compose для зависимостей (PostgreSQL, Redis, NATS, Meilisearch)
-- [ ] 🔴 Hot reload для Python сервисов
+- [x] ✅ Docker Compose dev (hot reload, volume mounts) + prod (monitoring, multi-worker)
+- [x] ✅ Hot reload для Python сервисов (docker-compose.dev.yml)
 - [ ] 🔴 Watch mode для Rust сервисов (cargo-watch)
-- [ ] 🔴 Database seeding: `just seed` — заполнить БД тестовыми данными
+- [x] ✅ Database seeding: `docker compose --profile seed up seed` (50K users + 100K courses + 200K enrollments + 100K reviews)
 - [ ] 🔴 Документация: "Getting started" за < 15 минут для нового разработчика
 
 ### Code Quality
@@ -112,9 +112,9 @@ eduplatform/
 - [ ] 🔴 OpenAPI spec для публичного REST API (автогенерация из FastAPI)
 
 ### Testing стратегия
-- [ ] 🔴 Unit tests: каждый сервис, мокают внешние зависимости, < 30 сек
+- [x] ✅ Unit tests: 113 тестов по 5 сервисам (identity 32, course 40, enrollment 20, payment 11, notification 10)
 - [ ] 🔴 Integration tests: сервис + его БД (testcontainers), < 2 мин
 - [ ] 🔴 Contract tests: проверка совместимости между сервисами (Pact)
 - [ ] 🔴 E2E tests: критические бизнес-потоки (регистрация → запись на курс → прохождение), < 5 мин
-- [ ] 🔴 Load tests: Locust сценарии, запуск еженедельно
+- [x] ✅ Load tests: Locust сценарии (student, search, teacher), baseline снят, Phase 1.0 замер выполнен
 - [ ] 🔴 Chaos tests: ежемесячно в staging

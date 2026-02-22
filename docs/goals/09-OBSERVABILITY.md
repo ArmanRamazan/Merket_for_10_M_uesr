@@ -39,9 +39,11 @@
 ## TODO: Observability Stack
 
 ### Metrics
-- [ ] 🔴 Определить стек: Prometheus + Grafana (self-hosted) или Datadog/Grafana Cloud
-- [ ] 🔴 RED метрики для каждого сервиса (Rate, Errors, Duration)
-- [ ] 🔴 USE метрики для инфраструктуры (Utilization, Saturation, Errors)
+- [x] ✅ Prometheus + Grafana (self-hosted, docker-compose.prod.yml)
+- [x] ✅ RED метрики: FastAPI instrumentator (prometheus-fastapi-instrumentator) на всех сервисах
+- [x] ✅ DB pool метрики: pool_size, pool_free, pool_used (custom Prometheus gauges per service)
+- [x] ✅ DB query duration histogram (per service, per operation)
+- [x] ✅ Grafana dashboard: 6 panels (RPS, latency, errors, DB pool)
 - [ ] 🔴 Business метрики в Grafana: revenue, enrollments/min, active users, completion rate
 - [ ] 🔴 SLO dashboards: burn rate, error budget remaining
 

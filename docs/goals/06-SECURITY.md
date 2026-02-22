@@ -22,9 +22,13 @@
 ## TODO: Security Architecture
 
 ### Application Security
-- [ ] 🔴 Определить authentication flow: OAuth2 + JWT, token rotation, device fingerprinting
-- [ ] 🔴 API Gateway: rate limiting per user/IP, request validation, CORS policy
-- [ ] 🔴 Input validation стратегия: whitelist approach, sanitization на каждом уровне
+- [x] ✅ JWT auth: access token с role + is_verified в claims, bcrypt password hashing
+- [x] ✅ Role-based access control: student, teacher (verified), admin
+- [x] ✅ Input validation: Pydantic models на уровне routes
+- [x] ✅ Parameterized SQL queries (asyncpg, no string concatenation)
+- [ ] 🔴 JWT refresh tokens (Phase 1.2)
+- [ ] 🔴 Rate limiting per user/IP (Phase 1.2)
+- [ ] 🔴 CORS policy (Phase 1.2)
 - [ ] 🔴 Secrets management: Vault / AWS Secrets Manager, rotation policy
 - [ ] 🔴 Dependency scanning: автоматическая проверка уязвимостей в зависимостях (CI)
 
