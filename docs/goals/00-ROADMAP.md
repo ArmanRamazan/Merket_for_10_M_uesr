@@ -185,9 +185,9 @@ MVP (10K) ✅ → Оптимизация (100K) ← мы здесь → Масш
 | 1.1.1 | FK indexes: teacher_id, course_id, module_id, student_id, user_id (все сервисы) | PostgreSQL не создаёт индексы на FK → full table scan | ✅ |
 | 1.1.2 | Redis кэширование: course by id, curriculum (cache-aside, TTL 5 min) | Снижение DB reads для горячих данных | ✅ |
 | 1.1.3 | Cursor-based pagination (keyset) для courses list, search, my | Offset > 10K сканирует и отбрасывает строки | ✅ |
-| 1.1.4 | Перезамерить: Locust 200 users, 5 min | Валидация | 🔴 |
+| 1.1.4 | Перезамерить: Locust 200 users, 5 min | Валидация | ✅ |
 
-**Критерий:** 200 RPS, p99 < 100ms, DB CPU < 50%.
+**Результат:** 157 RPS (200 users), p99 = 51ms, search p99 = 35ms (23x vs baseline), pool 10%. Подробности — [`phases/PHASE-1.1-RESULTS.md`](../phases/PHASE-1.1-RESULTS.md).
 
 ---
 
