@@ -20,80 +20,97 @@
 
 ---
 
-## Milestone 1.1 — Performance & Infrastructure (Неделя 1-2)
+## Milestone 1.1 — Performance & Infrastructure ✅ DONE
 
-> Устранение bottleneck-ов найденных в Phase 0.7
+> Устранение bottleneck-ов найденных в Phase 0.7. Подробности — [`PHASE-1.1-RESULTS.md`](PHASE-1.1-RESULTS.md).
 
 | # | Задача | Статус |
 |---|--------|--------|
-| 1.1.1 | pg_trgm + GIN индекс на courses (title, description) | 🔴 |
-| 1.1.2 | Redis кэширование: course list, course by id, curriculum | 🔴 |
-| 1.1.3 | PgBouncer перед PostgreSQL (connection pooling) | 🔴 |
-| 1.1.4 | uvicorn workers: 4 per service | 🔴 |
-| 1.1.5 | Cursor-based pagination вместо offset | 🔴 |
-| 1.1.6 | Database indexes: created_at, teacher_id, course_id | 🔴 |
+| 1.1.1 | pg_trgm + GIN индекс на courses (title, description) | ✅ (Phase 1.0) |
+| 1.1.2 | Redis кэширование: course by id, curriculum (cache-aside, TTL 5min) | ✅ |
+| 1.1.3 | PgBouncer перед PostgreSQL (connection pooling) | ⏳ Deferred (pool 5/20 достаточно) |
+| 1.1.4 | uvicorn workers: 4 per service | ✅ (уже было в prod compose) |
+| 1.1.5 | Cursor-based pagination вместо offset | ✅ |
+| 1.1.6 | FK indexes: teacher_id, course_id, module_id, student_id, user_id | ✅ (11 indexes) |
+
+**Результат:** 157 RPS (200 users), p99 = 51ms, search p99 = 35ms (23x vs baseline), pool 10%.
 
 ---
 
-## Milestone 1.2 — Go-to-Market Ready (Неделя 2-3)
+## Milestone 1.2 — Reliability & Security ✅ DONE
+
+> Production-readiness: security hardening и operational надёжность.
 
 | # | Задача | Статус |
 |---|--------|--------|
-| 1.2.1 | SEO: SSR для каталога, meta tags, structured data (Course schema) | 🔴 |
-| 1.2.2 | Social sharing: Open Graph для курсов | 🔴 |
-| 1.2.3 | Mobile web: responsive, PWA | 🔴 |
-| 1.2.4 | Core Web Vitals: зелёная зона для всех страниц | 🔴 |
-| 1.2.5 | Teacher onboarding flow: guided wizard по созданию курса | 🔴 |
+| 1.2.1 | JWT refresh tokens (rotation + family-based reuse detection) | ✅ |
+| 1.2.2 | Rate limiting (per-IP Redis sliding window, 100/min global) | ✅ |
+| 1.2.3 | CORS middleware (env-based origins) | ✅ |
+| 1.2.4 | XSS sanitization (bleach) в Course service | ✅ |
+| 1.2.5 | Graceful shutdown (timeout-graceful-shutdown + stop_grace_period) | ✅ |
+| 1.2.6 | Health checks (/health/live + /health/ready) на всех 5 сервисах | ✅ |
+
+**Результат:** 146 тестов по 5 сервисам (identity 48, course 51, enrollment 22, payment 13, notification 12).
 
 ---
 
-## Milestone 1.3 — Trust & Safety (Неделя 3-4)
+## Milestone 1.3 — Go-to-Market Ready
 
 | # | Задача | Статус |
 |---|--------|--------|
-| 1.3.1 | Teacher verification: загрузка документов, review queue | 🔴 |
-| 1.3.2 | Course moderation: базовая проверка контента | 🔴 |
-| 1.3.3 | Review moderation: фильтрация спама/оскорблений | 🔴 |
-| 1.3.4 | Reporting: жалобы на курсы/преподавателей | 🔴 |
-| 1.3.5 | Rate limiting на API | 🔴 |
+| 1.3.1 | SEO: SSR для каталога, meta tags, structured data (Course schema) | 🔴 |
+| 1.3.2 | Social sharing: Open Graph для курсов | 🔴 |
+| 1.3.3 | Mobile web: responsive, PWA | 🔴 |
+| 1.3.4 | Core Web Vitals: зелёная зона для всех страниц | 🔴 |
+| 1.3.5 | Teacher onboarding flow: guided wizard по созданию курса | 🔴 |
 
 ---
 
-## Milestone 1.4 — Engagement & Retention (Неделя 4-5)
+## Milestone 1.4 — Trust & Safety
 
 | # | Задача | Статус |
 |---|--------|--------|
-| 1.4.1 | Email уведомления: welcome, enrollment, lesson reminders | 🔴 |
-| 1.4.2 | Wishlist / favorites | 🔴 |
-| 1.4.3 | Категории курсов + фильтры в каталоге | 🔴 |
-| 1.4.4 | Сертификат по завершении курса (PDF) | 🔴 |
-| 1.4.5 | JWT refresh tokens | 🔴 |
-| 1.4.6 | Password reset flow | 🔴 |
+| 1.4.1 | Teacher verification: загрузка документов, review queue | 🔴 |
+| 1.4.2 | Course moderation: базовая проверка контента | 🔴 |
+| 1.4.3 | Review moderation: фильтрация спама/оскорблений | 🔴 |
+| 1.4.4 | Reporting: жалобы на курсы/преподавателей | 🔴 |
 
 ---
 
-## Milestone 1.5 — Teacher Growth (Неделя 5-6)
+## Milestone 1.5 — Engagement & Retention
 
 | # | Задача | Статус |
 |---|--------|--------|
-| 1.5.1 | Seller App (Next.js): teacher dashboard | 🔴 |
-| 1.5.2 | Аналитика курсов: студенты, completion rate, revenue | 🔴 |
-| 1.5.3 | Stripe/YooKassa интеграция (реальные платежи) | 🔴 |
-| 1.5.4 | Payout: вывод средств для преподавателей | 🔴 |
-| 1.5.5 | Промо v1: купоны, скидки | 🔴 |
+| 1.5.1 | Email уведомления: welcome, enrollment, lesson reminders | 🔴 |
+| 1.5.2 | Wishlist / favorites | 🔴 |
+| 1.5.3 | Категории курсов + фильтры в каталоге | 🔴 |
+| 1.5.4 | Сертификат по завершении курса (PDF) | 🔴 |
+| 1.5.5 | Password reset flow | 🔴 |
 
 ---
 
-## Milestone 1.6 — Infrastructure Hardening (Неделя 6-7)
+## Milestone 1.6 — Teacher Growth
 
 | # | Задача | Статус |
 |---|--------|--------|
-| 1.6.1 | CI/CD: GitHub Actions (lint → test → build → deploy) | 🔴 |
-| 1.6.2 | Staging environment | 🔴 |
-| 1.6.3 | Database backups + restore procedure | 🔴 |
-| 1.6.4 | Structured logging (JSON) | 🔴 |
-| 1.6.5 | Load test: 1K concurrent users | 🔴 |
-| 1.6.6 | Incident response: on-call, runbooks | 🔴 |
+| 1.6.1 | Seller App (Next.js): teacher dashboard | 🔴 |
+| 1.6.2 | Аналитика курсов: студенты, completion rate, revenue | 🔴 |
+| 1.6.3 | Stripe/YooKassa интеграция (реальные платежи) | 🔴 |
+| 1.6.4 | Payout: вывод средств для преподавателей | 🔴 |
+| 1.6.5 | Промо v1: купоны, скидки | 🔴 |
+
+---
+
+## Milestone 1.7 — Infrastructure Hardening
+
+| # | Задача | Статус |
+|---|--------|--------|
+| 1.7.1 | CI/CD: GitHub Actions (lint → test → build → deploy) | 🔴 |
+| 1.7.2 | Staging environment | 🔴 |
+| 1.7.3 | Database backups + restore procedure | 🔴 |
+| 1.7.4 | Structured logging (JSON) | 🔴 |
+| 1.7.5 | Load test: 1K concurrent users | 🔴 |
+| 1.7.6 | Incident response: on-call, runbooks | 🔴 |
 
 ---
 

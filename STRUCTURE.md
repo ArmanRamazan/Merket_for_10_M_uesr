@@ -17,7 +17,7 @@ eduplatform/
 │
 ├── libs/                          # Shared код (минимум, только DRY)
 │   ├── py/
-│   │   ├── common/                #   Config, logging, errors, middleware
+│   │   ├── common/                #   Config, errors, security, database, health, rate_limit
 │   │   └── db/                    #   DB connection, migration helpers
 │   └── rs/
 │       ├── common/src/            #   Error types, config, tracing setup
@@ -25,10 +25,11 @@ eduplatform/
 │
 ├── services/                      # Deployable сервисы
 │   ├── py/                        # Python сервисы (бизнес-логика)
-│   │   ├── identity/              #   Регистрация, auth, JWT, roles (student/teacher)
-│   │   ├── course/                #   CRUD курсов, поиск, role-based access
-│   │   ├── enrollment/            #   Запись на курс, прогресс, сертификаты
-│   │   └── notifications/         #   Email, push (event consumer)
+│   │   ├── identity/              #   Auth, JWT refresh tokens, roles, admin endpoints
+│   │   ├── course/                #   CRUD курсов, поиск, модули, уроки, отзывы, XSS sanitization
+│   │   ├── enrollment/            #   Запись на курс, прогресс, lesson completion
+│   │   ├── payment/               #   Mock-оплата
+│   │   └── notification/          #   In-app уведомления
 │   └── rs/                        # Rust сервисы (performance-critical)
 │       ├── api-gateway/           #   Routing, auth check, rate limiting
 │       ├── search/                #   Поисковый proxy + ranking
@@ -77,14 +78,13 @@ eduplatform/
 
 | Чего нет | Когда появится | Триггер для создания |
 |----------|---------------|---------------------|
-| `services/py/enrollment/` | Phase 1 | Когда запись на курс станет приоритетом |
-| `services/py/moderation/` | Phase 1 | Когда будет > 1000 курсов и нужна модерация контента |
+| `services/py/moderation/` | Phase 2 | Когда будет > 1000 курсов и нужна модерация контента |
 | `services/py/analytics-api/` | Phase 2 | Когда teacher dashboard потребует аналитику |
 | `services/rs/feed-builder/` | Phase 2 | Когда рекомендации станут приоритетом |
 | `workers/` директория | Когда вырастет | Пока background jobs живут внутри сервисов. Выделим когда нужна независимая масштабируемость |
 | `libs/py/testing/` | Когда будет boilerplate | Пока fixtures живут в `tests/` каждого сервиса. Выделим когда увидим дублирование |
-| `terraform/` | Phase 1 | Пока K8s manifests хватает. IaC когда будет multi-env |
-| `apps/admin/` | Phase 1 | Admin panel когда появится модерация и финансовый контроль |
+| `terraform/` | Phase 2 | Пока Docker Compose хватает. IaC когда будет multi-env |
+| `apps/seller/` | Phase 1.6 | Teacher dashboard как отдельное приложение |
 
 ---
 

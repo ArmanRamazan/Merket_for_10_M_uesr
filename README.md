@@ -16,19 +16,22 @@ Pet-проект: итеративное масштабирование учеб
 
 ## Текущий статус
 
-**Стадия:** MVP (10K пользователей) — бэкенд + фронтенд работают
+**Стадия:** Phase 1.2 (Reliability & Security) — 157 RPS, p99 51ms
 
 | Компонент | Статус | Описание |
 |-----------|--------|----------|
-| Identity Service | ✅ Готов | Регистрация, логин, JWT, система ролей (student/teacher) |
-| Course Service | ✅ Готов | CRUD курсов, поиск ILIKE (намеренно без индекса), role-based access |
-| Buyer Frontend | ✅ Готов | Next.js 15 — каталог курсов, поиск, авторизация, создание курса |
-| Shared Library | ✅ Готов | Config, errors, security, database (libs/py/common) |
-| Docker Compose | ✅ Готов | Dev (hot reload) + Prod (multi-worker, monitoring) |
-| Prometheus + Grafana | ✅ Готов | RPS, latency p50/p95/p99, error rate |
-| Seed Script | ✅ Готов | 50K users (80% students, 20% teachers) + 100K courses через COPY protocol |
+| Identity Service | ✅ Готов | Регистрация, логин, JWT refresh tokens, роли, admin endpoints |
+| Course Service | ✅ Готов | CRUD курсов, pg_trgm поиск, модули/уроки, отзывы, XSS sanitization |
+| Enrollment Service | ✅ Готов | Запись на курс, прогресс обучения, lesson completion |
+| Payment Service | ✅ Готов | Mock-оплата, GET /me, GET /:id |
+| Notification Service | ✅ Готов | In-app уведомления, mark as read |
+| Buyer Frontend | ✅ Готов | Next.js 15 — каталог, поиск, уроки, прогресс, admin panel |
+| Shared Library | ✅ Готов | Config, errors, security, database, health checks, rate limiting |
+| Docker Compose | ✅ Готов | Dev (hot reload) + Prod (monitoring, graceful shutdown) |
+| Prometheus + Grafana | ✅ Готов | RPS, latency p50/p95/p99, error rate, pool metrics |
+| Seed Script | ✅ Готов | 50K users + 100K courses + 200K enrollments + 100K reviews |
 | Locust | ✅ Готов | 3 сценария: Student (70%), Search (20%), Teacher (10%) |
-| Unit Tests | ✅ Готов | identity + course тесты |
+| Unit Tests | ✅ 146 тестов | identity 48, course 51, enrollment 22, payment 13, notification 12 |
 
 ## Стек
 
@@ -38,7 +41,7 @@ Pet-проект: итеративное масштабирование учеб
 | Performance-critical | Rust (будет) | API gateway, поиск, видео — когда Python упрётся в потолок |
 | Frontend | Next.js 15 / Tailwind CSS 4 | SSR/SSG, App Router |
 | БД | PostgreSQL 16 | Каждый сервис — своя БД |
-| Кэш | Redis 7 | Подключен, но не используется (добавим когда увидим bottleneck) |
+| Кэш / Rate limit | Redis 7 | Course cache (TTL 5min), rate limiting (sliding window), все сервисы |
 | Метрики | Prometheus + Grafana | Автоматические метрики через prometheus-fastapi-instrumentator |
 | Нагрузка | Locust | Сценарии, имитирующие реальный трафик |
 | Пакеты | uv (Python), npm (JS) | uv workspace для монорепы |
@@ -69,11 +72,12 @@ npm run dev    # http://localhost:3001
 # Установить зависимости (из корня)
 uv sync --all-packages
 
-# Identity
+# Все 5 сервисов (146 тестов)
 cd services/py/identity && uv run --package identity pytest tests/ -v
-
-# Course
 cd services/py/course && uv run --package course pytest tests/ -v
+cd services/py/enrollment && uv run --package enrollment pytest tests/ -v
+cd services/py/payment && uv run --package payment pytest tests/ -v
+cd services/py/notification && uv run --package notification pytest tests/ -v
 ```
 
 ### Нагрузочное тестирование
@@ -94,25 +98,35 @@ docker compose -f docker-compose.prod.yml --profile loadtest up locust
 |--------|------|
 | Identity API | 8001 |
 | Course API | 8002 |
+| Enrollment API | 8003 |
+| Payment API | 8004 |
+| Notification API | 8005 |
 | Buyer Frontend | 3001 |
 | Grafana | 3000 |
 | Prometheus | 9090 |
 | Locust | 8089 |
 | Identity DB (Postgres) | 5433 |
 | Course DB (Postgres) | 5434 |
+| Enrollment DB (Postgres) | 5435 |
+| Payment DB (Postgres) | 5436 |
+| Notification DB (Postgres) | 5437 |
 | Redis | 6379 |
 
 ## Структура
 
 ```
-├── libs/py/common/          — Shared: config, errors, security, database
-├── services/py/identity/    — Auth: register, login, JWT, roles
-├── services/py/course/      — Courses: CRUD, search, role-based access
+├── libs/py/common/          — Shared: config, errors, security, database, health, rate limiting
+├── services/py/identity/    — Auth: register, login, JWT refresh tokens, roles, admin
+├── services/py/course/      — Courses: CRUD, search, modules, lessons, reviews, XSS sanitization
+├── services/py/enrollment/  — Enrollment: запись на курс, прогресс, lesson completion
+├── services/py/payment/     — Payment: mock-оплата
+├── services/py/notification/— Notifications: in-app, mark as read
 ├── apps/buyer/              — Next.js frontend
 ├── deploy/docker/           — Dockerfiles, Prometheus, Grafana
-├── tools/seed/              — Data generation (50K users, 100K courses)
+├── tools/seed/              — Data generation (50K users, 100K courses, 200K enrollments)
 ├── tools/locust/            — Load test scenarios
 ├── docs/goals/              — Architecture decisions, domain specs
+├── docs/architecture/       — Current system state (source of truth)
 └── docs/phases/             — Implementation roadmap
 ```
 
@@ -122,8 +136,8 @@ docker compose -f docker-compose.prod.yml --profile loadtest up locust
 
 | Стадия | Нагрузка | Ключевые изменения | Статус |
 |--------|----------|-------------------|--------|
-| **MVP** | 10K users | 2 Python сервиса, Next.js, Postgres, без кэша | 🟡 В работе |
-| **Оптимизация** | 10K → 100K | Индексы, Redis кэш, PgBouncer, connection tuning | 🔴 Не начато |
+| **MVP** | 10K users | 5 Python сервисов, Next.js, Postgres, Locust | ✅ Готово |
+| **Оптимизация** | 10K → 100K | Индексы, Redis кэш, rate limiting, refresh tokens, health checks | 🟡 Phase 1.2 ✅ |
 | **Масштабирование** | 100K → 1M | Rust gateway, Meilisearch, NATS events, read replicas | 🔴 Не начато |
 | **Платформа** | 1M → 10M | Sharding, multi-region, video, live streaming | 🔴 Не начато |
 

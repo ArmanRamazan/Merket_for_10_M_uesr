@@ -1,13 +1,13 @@
 # 01 — Обзор системы
 
-> Последнее обновление: 2026-02-21 (Phase 0.6 + Admin)
-> Стадия: MVP (Phase 0) — до 10K пользователей
+> Последнее обновление: 2026-02-23
+> Стадия: Phase 1.2 (Reliability & Security)
 
 ---
 
 ## Что есть сейчас
 
-EduPlatform MVP — учебная платформа с полным циклом обучения. Пять бэкенд-сервисов, фронтенд и инфраструктура мониторинга/нагрузочного тестирования. Три роли: Student, Teacher, Admin. Студент может найти курс, записаться, пройти уроки, отслеживать прогресс, оставить отзыв. Преподаватель может создать курс с модулями и уроками. Администратор верифицирует преподавателей.
+EduPlatform — учебная платформа с полным циклом обучения. Пять бэкенд-сервисов, фронтенд и инфраструктура мониторинга/нагрузочного тестирования. Три роли: Student, Teacher, Admin. Студент может найти курс, записаться, пройти уроки, отслеживать прогресс, оставить отзыв. Преподаватель может создать курс с модулями и уроками. Администратор верифицирует преподавателей. Оптимизирована производительность (157 RPS, p99 51ms) и надёжность (health checks, rate limiting, CORS, refresh tokens, XSS sanitization).
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -46,7 +46,7 @@ EduPlatform MVP — учебная платформа с полным цикло
 │ └────────┘  └────────┘  └────────┘ └────────┘ └────────┘   │
 │                                                              │
 │              ┌──────────┐                                    │
-│              │  Redis   │  :6379 (unused)                    │
+│              │  Redis   │  :6379 (cache, rate limiting)      │
 │              └──────────┘                                    │
 │                                                              │
 ├──────────────────────────────────────────────────────────────┤
@@ -91,7 +91,7 @@ EduPlatform MVP — учебная платформа с полным цикло
 | Frontend | Next.js / React | 15.3 / 19.1 | SSR/SSG, App Router |
 | Стили | Tailwind CSS | 4.1 | Утилитарные стили |
 | БД | PostgreSQL | 16 (Alpine) | Database-per-service |
-| Кэш | Redis | 7 (Alpine) | Подключен, не используется (Phase 1) |
+| Кэш / Rate limit | Redis | 7 (Alpine) | Course cache (TTL 5min), rate limiting (sliding window), все сервисы |
 | ORM | asyncpg | 0.30+ | Raw SQL, parameterized queries |
 | Auth | PyJWT + bcrypt | 2.10+ / 4.0+ | JWT HS256, bcrypt хэширование |
 | Config | pydantic-settings | 2.7+ | Env vars → typed settings |
@@ -110,20 +110,37 @@ EduPlatform MVP — учебная платформа с полным цикло
 2. **Clean Architecture** — routes → services → domain ← repositories
 3. **JWT shared secret** — все 5 сервисов валидируют JWT самостоятельно, без обращения к Identity
 4. **Клиент-оркестратор** — Frontend оркестрирует вызовы между сервисами (Payment → Enrollment → Notification)
-5. **Намеренные bottleneck-и** — ILIKE без индекса, pool = 5 connections, нет кэша
-6. **Роли в JWT claims** — `role` (student/teacher/admin) и `is_verified` передаются в extra_claims токена
-7. **Forward-only миграции** — SQL файлы, выполняются при старте сервиса
-8. **Owner check** — teacher может управлять только своими курсами/модулями/уроками (проверка teacher_id)
+5. **Роли в JWT claims** — `role` (student/teacher/admin) и `is_verified` передаются в extra_claims токена
+6. **Forward-only миграции** — SQL файлы, выполняются при старте сервиса
+7. **Owner check** — teacher может управлять только своими курсами/модулями/уроками (проверка teacher_id)
+8. **Redis everywhere** — все 5 сервисов подключены к Redis (rate limiting + cache в Course)
+9. **Health checks** — `/health/live` (liveness) + `/health/ready` (readiness) на всех сервисах
+10. **Refresh token rotation** — JWT access (1h) + refresh (30d) с family-based reuse detection
 
 ---
+
+## Что оптимизировано (Phase 1.0–1.2)
+
+| Оптимизация | Было | Стало |
+|-------------|------|-------|
+| pg_trgm GIN index на courses | search p99 = 803ms | search p99 = 35ms (23x) |
+| Connection pool 5 → 5/20 (min/max) | 100% saturation | 10% saturation |
+| Redis cache-aside (course, curriculum) | — | TTL 5 min, cache hit |
+| FK indexes (11 новых) | full table scan на JOIN | index scan |
+| Cursor pagination (keyset) | offset scan | constant time |
+| Health checks (/health/live, /health/ready) | — | все 5 сервисов |
+| Rate limiting (Redis sliding window) | — | 100/min global, 10/min login, 5/min register |
+| CORS middleware | — | env-based origins |
+| XSS sanitization (bleach) | — | course/lesson content |
+| JWT refresh tokens | 1h access only | access (1h) + refresh (30d) + rotation |
+| Graceful shutdown | — | timeout-graceful-shutdown 25s (prod) |
 
 ## Чего нет (намеренно, YAGNI)
 
 | Чего нет | Почему | Когда появится |
 |----------|--------|---------------|
-| Индексы на поиск | Bottleneck для load testing | Когда search p99 > 300ms |
-| Redis кэш | Bottleneck | Когда DB CPU > 70% |
-| Connection pooling tuning | Bottleneck | Когда pool exhaustion в логах |
 | API Gateway | Не нужен для 5 сервисов с прямым доступом | Phase 2 (Rust/Axum) |
 | Event bus (NATS) | Нет межсервисных событий, клиент оркестрирует | Phase 2 |
-| CI/CD | Локальная разработка | Phase 1 |
+| CI/CD | Локальная разработка | Phase 1.6 |
+| Email-верификация | YAGNI для текущей стадии | Phase 1.3 |
+| Категории курсов | Пока только поиск | Phase 1.3 |

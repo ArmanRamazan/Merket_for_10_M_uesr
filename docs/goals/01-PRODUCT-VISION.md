@@ -1,7 +1,7 @@
 # 01 — Видение продукта и бизнес-метрики
 
 > Владелец: CEO / CPO
-> Последнее обновление: 2026-02-20
+> Последнее обновление: 2026-02-23
 
 ---
 
@@ -13,7 +13,7 @@
 
 ## Текущее состояние продукта
 
-### Что работает (Phase 0.5–0.7 + 1.0)
+### Что работает (Phase 0.5–0.7 + 1.0–1.2)
 
 | Возможность | Статус | Детали |
 |-------------|--------|--------|
@@ -30,6 +30,15 @@
 | Уведомления | ✅ | In-app, mark as read |
 | Мониторинг | ✅ | Prometheus + Grafana + Locust, DB pool metrics |
 | Connection pool tuning | ✅ | Configurable min/max (default 5/20) |
+| Redis кэширование | ✅ | Cache-aside: course by id, curriculum (TTL 5 min) |
+| FK indexes | ✅ | 11 новых индексов по всем сервисам |
+| Cursor pagination | ✅ | Keyset pagination для courses list, search, my |
+| Health checks | ✅ | /health/live (liveness) + /health/ready (readiness) |
+| Rate limiting | ✅ | Per-IP Redis sliding window (100/min global, 10/min login, 5/min register) |
+| CORS | ✅ | Env-based origins, credentials, all methods |
+| XSS sanitization | ✅ | bleach для course/lesson content |
+| JWT refresh tokens | ✅ | Token rotation с family-based reuse detection (30d TTL) |
+| Graceful shutdown | ✅ | timeout-graceful-shutdown + stop_grace_period |
 | Frontend (buyer) | ✅ | Каталог, поиск, курс, уроки, прогресс, отзывы, admin panel |
 
 ### Замкнутый цикл обучения ✅
@@ -67,16 +76,15 @@ Teacher создаёт курс → добавляет уроки → Student н
 
 Пока этот цикл не замкнут — это не учебная платформа, а каталог карточек.
 
-### Следующие шаги (Phase 1.1+)
+### Следующие шаги (Phase 1.3+)
 
 | # | Фича | Зачем | Приоритет |
 |---|------|-------|-----------|
-| 1 | **Redis кэширование** | Снижение нагрузки на БД при росте трафика | P1 |
-| 2 | **Категории курсов + фильтрация** | Навигация помимо поиска | P1 |
-| 3 | **JWT refresh tokens** | Пользователи не должны re-login каждый час | P1 |
-| 4 | **Редактирование профиля** | Базовая персонализация | P1 |
-| 5 | **Rate limiting** | Защита от abuse | P1 |
-| 6 | **Забыли пароль** | Базовая функциональность | P2 |
+| 1 | **Категории курсов + фильтрация** | Навигация помимо поиска | P1 |
+| 2 | **Email-верификация** | Качество user base | P1 |
+| 3 | **Забыли пароль** | Базовая функциональность | P1 |
+| 4 | **Редактирование профиля** | Базовая персонализация | P2 |
+| 5 | **Error boundaries + loading states** | UX при ошибках и загрузке | P2 |
 
 ---
 

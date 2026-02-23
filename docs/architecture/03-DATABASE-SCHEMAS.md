@@ -1,7 +1,7 @@
 # 03 — Database Schemas
 
-> Последнее обновление: 2026-02-21
-> Стадия: MVP (Phase 0)
+> Последнее обновление: 2026-02-23
+> Стадия: Phase 1.2 (Reliability & Security)
 
 ---
 
@@ -12,7 +12,8 @@
 ```
 identity-db (PostgreSQL 16 Alpine, :5433)
   └── database: identity
-       └── table: users
+       ├── table: users
+       └── table: refresh_tokens
 
 course-db (PostgreSQL 16 Alpine, :5434)
   └── database: course
@@ -69,12 +70,41 @@ CREATE TABLE users (
 | `is_verified` | BOOLEAN | NOT NULL, DEFAULT false | Верификация преподавателя |
 | `created_at` | TIMESTAMPTZ | NOT NULL, DEFAULT now() | Дата создания |
 
-**Индексы:** только PK (id) и UNIQUE (email). Намеренно нет дополнительных индексов — bottleneck для load testing.
+**Индексы:** PK (id) + UNIQUE (email).
 
 **Миграции:**
 - `001_users.sql` — создание таблицы users
 - `002_add_role.sql` — добавление role ENUM и is_verified
 - `003_add_admin_role.sql` — добавление значения `admin` в ENUM user_role
+- `004_refresh_tokens.sql` — таблица refresh_tokens + индексы
+
+### Table: `refresh_tokens`
+
+```sql
+CREATE TABLE refresh_tokens (
+    id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token_hash VARCHAR(255) NOT NULL UNIQUE,
+    family_id  UUID NOT NULL,
+    is_revoked BOOLEAN NOT NULL DEFAULT false,
+    expires_at TIMESTAMPTZ NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+```
+
+| Column | Type | Constraints | Описание |
+|--------|------|-------------|----------|
+| `id` | UUID | PK, auto | Уникальный идентификатор |
+| `user_id` | UUID | FK → users(id), NOT NULL | Владелец токена |
+| `token_hash` | VARCHAR(255) | UNIQUE, NOT NULL | SHA-256 хэш refresh token |
+| `family_id` | UUID | NOT NULL | Группа токенов (для reuse detection) |
+| `is_revoked` | BOOLEAN | NOT NULL, DEFAULT false | Отозван ли токен |
+| `expires_at` | TIMESTAMPTZ | NOT NULL | Время истечения (TTL 30 дней) |
+| `created_at` | TIMESTAMPTZ | NOT NULL, DEFAULT now() | Дата создания |
+
+**Индексы:** PK (id) + UNIQUE (token_hash) + idx_refresh_tokens_user_id + idx_refresh_tokens_family_id.
+
+**Token rotation:** при каждом refresh все токены в family отзываются, создаётся новый с тем же family_id. При повторном использовании отозванного токена — вся family блокируется (reuse detection).
 
 ---
 
@@ -118,14 +148,16 @@ CREATE TABLE courses (
 | `review_count` | INTEGER | NOT NULL, DEFAULT 0 | Количество отзывов (денормализация) |
 | `created_at` | TIMESTAMPTZ | NOT NULL, DEFAULT now() | Дата создания |
 
-**Индексы:** только PK (id). `teacher_id` не имеет FK constraint — eventual consistency.
+**Индексы:** PK (id) + idx_courses_teacher_id + GIN (title, description) через pg_trgm. `teacher_id` не имеет FK constraint — eventual consistency.
 
-**Поиск:** `ILIKE '%query%'` по title и description — намеренно без индекса (bottleneck для load testing). При search p99 > 300ms → добавить GIN/trigram index.
+**Поиск:** `ILIKE '%query%'` по title и description. pg_trgm GIN index обеспечивает p99 < 50ms на 100K курсов.
 
 **Миграции:**
 - `001_courses.sql` — создание ENUM course_level и таблицы courses
 - `002_modules_lessons.sql` — таблицы modules и lessons
 - `003_reviews.sql` — таблица reviews + avg_rating/review_count в courses
+- `004_indexes.sql` — FK indexes (teacher_id, course_id, module_id, student_id)
+- `005_pg_trgm.sql` — pg_trgm extension + GIN index на courses (title, description)
 
 ### Table: `modules`
 
@@ -311,10 +343,10 @@ CREATE TABLE notifications (
 ## Connection Pool
 
 Все сервисы используют `asyncpg.Pool`:
-- `min_size = 5`
-- `max_size = 5`
+- `min_size = 5` (настраивается через `DB_POOL_MIN_SIZE`)
+- `max_size = 20` (настраивается через `DB_POOL_MAX_SIZE`)
 
-Намеренно маленький пул — bottleneck для load testing. При pool exhaustion в логах → увеличить.
+Pool увеличен с 5/5 до 5/20 в Phase 1.0 — saturation снизилась с 100% до 10%.
 
 ---
 

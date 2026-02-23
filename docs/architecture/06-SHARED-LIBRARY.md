@@ -1,7 +1,7 @@
 # 06 — Shared Library (common)
 
-> Последнее обновление: 2026-02-20
-> Стадия: MVP (Phase 0)
+> Последнее обновление: 2026-02-23
+> Стадия: Phase 1.2 (Reliability & Security)
 
 ---
 
@@ -13,8 +13,10 @@ libs/py/common/
 └── common/
     ├── __init__.py
     ├── config.py         # BaseAppSettings
-    ├── database.py       # create_pool()
+    ├── database.py       # create_pool(), update_pool_metrics()
     ├── errors.py         # AppError hierarchy + register_error_handlers()
+    ├── health.py         # create_health_router() — liveness + readiness
+    ├── rate_limit.py     # RateLimiter, RateLimitMiddleware
     └── security.py       # create_access_token(), decode_token()
 ```
 
@@ -33,6 +35,10 @@ class BaseAppSettings(BaseSettings):
     jwt_secret: str = "change-me-in-production"
     jwt_algorithm: str = "HS256"
     jwt_ttl_seconds: int = 3600
+    db_pool_min_size: int = 5
+    db_pool_max_size: int = 20
+    allowed_origins: str = "http://localhost:3000,http://localhost:3001"
+    rate_limit_per_minute: int = 100
 ```
 
 Наследуется сервисами для добавления специфичных настроек. Все значения читаются из environment variables (pydantic-settings).
@@ -42,10 +48,12 @@ class BaseAppSettings(BaseSettings):
 ### `common.database`
 
 ```python
-async def create_pool(dsn: str, min_size: int = 5, max_size: int = 5) -> asyncpg.Pool
+async def create_pool(dsn: str, min_size: int = 5, max_size: int = 20) -> asyncpg.Pool
+def update_pool_metrics(pool: asyncpg.Pool, service_name: str) -> None
 ```
 
-Создаёт asyncpg connection pool. Pool size = 5 — намеренный bottleneck.
+- `create_pool()` — создаёт asyncpg connection pool с настраиваемым размером
+- `update_pool_metrics()` — обновляет Prometheus gauges (pool size, free connections)
 
 ---
 
@@ -86,6 +94,38 @@ def decode_token(token: str, secret: str, algorithm: str = "HS256") -> dict
 
 ---
 
+### `common.health`
+
+```python
+def create_health_router(
+    pool_getter: Callable[[], asyncpg.Pool | None],
+    redis_getter: Callable[[], Redis | None] | None = None,
+) -> APIRouter
+```
+
+Фабрика, возвращающая `APIRouter` с двумя endpoints:
+- `GET /health/live` — всегда `{"status": "ok"}`, 200 (liveness probe)
+- `GET /health/ready` — проверяет `pool.fetchval("SELECT 1")` и опционально `redis.ping()`. 200 если ок, 503 `{"status": "degraded"}` если нет (readiness probe)
+
+---
+
+### `common.rate_limit`
+
+```python
+class RateLimiter:
+    def __init__(self, redis: Redis, limit: int, window_seconds: int) -> None
+    async def check(self, key: str) -> bool  # True if under limit
+
+class RateLimitMiddleware(BaseHTTPMiddleware):
+    def __init__(self, app, redis_getter, limit: int, window: int) -> None
+```
+
+- `RateLimiter` — sliding window counter через Redis INCR + EXPIRE
+- `RateLimitMiddleware` — ASGI middleware, извлекает IP из `request.client.host`, при превышении возвращает `429 Too Many Requests` с `Retry-After` header
+- Пропускает `/health/` и `/metrics` endpoints
+
+---
+
 ## Использование в сервисах
 
 ```python
@@ -106,4 +146,4 @@ class Settings(BaseAppSettings):
 
 ## Правило выноса в common
 
-Код выносится в `libs/py/common/` только когда используется в **2+ сервисах**. Все 4 модуля используются во всех 5 сервисах (Identity, Course, Enrollment, Payment, Notification).
+Код выносится в `libs/py/common/` только когда используется в **2+ сервисах**. Все 6 модулей используются во всех 5 сервисах (Identity, Course, Enrollment, Payment, Notification).

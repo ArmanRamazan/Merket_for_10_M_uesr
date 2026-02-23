@@ -9,7 +9,7 @@
 ## Стадии масштабирования
 
 ```
-MVP (10K) ✅ → Оптимизация (100K) ← мы здесь → Масштабирование (1M) → Платформа (10M)
+MVP (10K) ✅ → Оптимизация (100K) ← мы здесь (Phase 1.2 ✅) → Масштабирование (1M) → Платформа (10M)
 ```
 
 | Стадия | Пользователи | Суть | Критерий перехода |
@@ -191,18 +191,20 @@ MVP (10K) ✅ → Оптимизация (100K) ← мы здесь → Масш
 
 ---
 
-### Phase 1.2 — Reliability & Security
+### Phase 1.2 — Reliability & Security ✅ DONE
 
 > Продукт должен быть не только быстрым, но и надёжным для реальных пользователей.
 
+**Результат:** 146 тестов по 5 сервисам. Health checks, graceful shutdown, CORS, rate limiting, XSS sanitization, JWT refresh token rotation.
+
 | # | Задача | Зачем | Статус |
 |---|--------|-------|--------|
-| 1.2.1 | JWT refresh tokens | Пользователи не должны re-login каждый час | 🔴 |
-| 1.2.2 | Rate limiting на API (per-IP, per-user) | Защита от abuse | 🔴 |
-| 1.2.3 | CORS настройка (production origins) | Безопасность | 🔴 |
-| 1.2.4 | Input sanitization (XSS в course/lesson content) | UGC безопасность | 🔴 |
-| 1.2.5 | Graceful shutdown (SIGTERM handling) | Zero-downtime deploys | 🔴 |
-| 1.2.6 | Health check endpoints (readiness + liveness) | Container orchestration | 🔴 |
+| 1.2.1 | JWT refresh tokens (rotation + reuse detection) | Пользователи не должны re-login каждый час | ✅ |
+| 1.2.2 | Rate limiting на API (per-IP sliding window, Redis) | Защита от abuse | ✅ |
+| 1.2.3 | CORS настройка (env-based origins) | Безопасность | ✅ |
+| 1.2.4 | Input sanitization (XSS в course/lesson content, bleach) | UGC безопасность | ✅ |
+| 1.2.5 | Graceful shutdown (SIGTERM, timeout-graceful-shutdown) | Zero-downtime deploys | ✅ |
+| 1.2.6 | Health check endpoints (/health/live + /health/ready) | Container orchestration | ✅ |
 
 ---
 
