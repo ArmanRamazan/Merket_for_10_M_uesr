@@ -1,7 +1,7 @@
 # 06 — Безопасность и Compliance
 
 > Владелец: Architect / Security Lead
-> Последнее обновление: 2026-02-19
+> Последнее обновление: 2026-02-24
 
 ---
 
@@ -26,9 +26,10 @@
 - [x] ✅ Role-based access control: student, teacher (verified), admin
 - [x] ✅ Input validation: Pydantic models на уровне routes
 - [x] ✅ Parameterized SQL queries (asyncpg, no string concatenation)
-- [ ] 🔴 JWT refresh tokens (Phase 1.2)
-- [ ] 🔴 Rate limiting per user/IP (Phase 1.2)
-- [ ] 🔴 CORS policy (Phase 1.2)
+- [x] ✅ JWT refresh tokens (rotation + family-based reuse detection)
+- [x] ✅ Rate limiting per-IP (Redis sliding window, 100/min global)
+- [x] ✅ CORS policy (env-based origins)
+- [x] ✅ XSS sanitization (bleach для course/lesson content)
 - [ ] 🔴 Secrets management: Vault / AWS Secrets Manager, rotation policy
 - [ ] 🔴 Dependency scanning: автоматическая проверка уязвимостей в зависимостях (CI)
 

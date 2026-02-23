@@ -1,23 +1,26 @@
 # EduPlatform — Roadmap
 
-> **Подход:** итеративное масштабирование. Запустить → нагрузить → найти bottleneck → оптимизировать → повторить.
+> **Подход:** Product-first. Сначала уникальные фичи, которые дифференцируют продукт.
+> Оптимизация и масштабирование — после того как продукт доказал ценность.
 >
-> Каждая стадия — не «теоретическое проектирование», а реальная работа с метриками. Переход к следующей стадии только когда текущая держит целевую нагрузку.
+> **Ключевая ставка:** не "ещё один видеокурсник", а **Learning Velocity Platform** —
+> AI-ускорение обучения через адаптивные пути, spaced repetition, Socratic tutoring
+> и knowledge graphs.
 
 ---
 
-## Стадии масштабирования
+## Стадии развития продукта
 
 ```
-MVP (10K) ✅ → Оптимизация (100K) ← мы здесь (Phase 1.3 ✅) → Масштабирование (1M) → Платформа (10M)
+Foundation ✅ → Learning Intelligence (← мы здесь) → Growth → Scale
 ```
 
 | Стадия | Пользователи | Суть | Критерий перехода |
 |--------|-------------|------|-------------------|
-| MVP | до 10K | Работающий продукт, полный цикл обучения | ✅ Locust показал деградацию при ~55 RPS |
-| **Оптимизация** | **10K → 100K** | **Индексы, кэш, connection pooling, UX** | **500 RPS, p99 < 200ms, 0 errors** |
-| Масштабирование | 100K → 1M | Rust gateway, event bus, read replicas, Meilisearch | 5K RPS, горизонтальное масштабирование |
-| Платформа | 1M → 10M | Sharding, multi-region, видео, live streaming | 50K+ RPS, multi-region, 99.99% uptime |
+| Foundation | до 10K | Базовая платформа, полный цикл обучения | ✅ 157 тестов, 157 RPS, p99=51ms |
+| **Learning Intelligence** | **10K → 100K** | **AI-тьютор, квизы, spaced repetition, knowledge graph, gamification** | **Completion rate > 40%, retention 7d > 60%** |
+| Growth | 100K → 1M | Реальные платежи, seller dashboard, SEO, mobile, CI/CD | Revenue $100K/мес, 1000 teachers |
+| Scale | 1M → 10M | Rust gateway, event bus, video platform, multi-region | 5K+ RPS, horizontal scaling |
 
 ---
 
@@ -25,263 +28,201 @@ MVP (10K) ✅ → Оптимизация (100K) ← мы здесь (Phase 1.3 �
 
 | # | Документ | Описание |
 |---|----------|----------|
-| 01 | [Видение продукта](./01-PRODUCT-VISION.md) | Бизнес-метрики, user journeys, revenue streams |
+| 01 | [Видение продукта](./01-PRODUCT-VISION.md) | Learning Velocity Engine, core loop, метрики |
 | 02 | [Архитектура](./02-ARCHITECTURE-PRINCIPLES.md) | ADR, принципы, выбор технологий |
-| 03 | [Инфраструктура](./03-INFRASTRUCTURE.md) | Масштабирование, стоимость, DevOps |
+| 03 | [Инфраструктура](./03-INFRASTRUCTURE.md) | Docker, мониторинг, стоимость |
 | 04 | [Домены](./04-DOMAINS.md) | Bounded contexts, event matrix |
-| 05 | [Стратегия данных](./05-DATA-STRATEGY.md) | Polyglot persistence, sharding, CQRS |
+| 05 | [Стратегия данных](./05-DATA-STRATEGY.md) | Polyglot persistence, CQRS |
 | 06 | [Безопасность](./06-SECURITY.md) | Threat model, compliance |
-| 07 | [Видео и медиа](./07-VIDEO-MEDIA.md) | Транскодирование, CDN, live streaming |
-| 08 | [Монорепа и DX](./08-MONOREPO-DX.md) | Build tools, CI/CD, testing strategy |
-| 09 | [Observability](./09-OBSERVABILITY.md) | SLO, метрики, алерты |
-| 10 | [Frontend](./10-FRONTEND.md) | Next.js, UI Kit, performance budgets |
+| 07 | [Видео и медиа](./07-VIDEO-MEDIA.md) | CDN, транскодирование |
+| 08 | [Монорепа и DX](./08-MONOREPO-DX.md) | Build tools, testing strategy |
+| 09 | [Observability](./09-OBSERVABILITY.md) | Prometheus, Grafana, метрики |
+| 10 | [Frontend](./10-FRONTEND.md) | Next.js, UI Kit, performance |
 | 11 | [AI Agent Standards](./11-AI-AGENT-STANDARDS.md) | MCP, context engineering, AI safety |
 
-Версии продукта — [`versions/`](../versions/).
+Продуктовая стратегия — [`strategy/PRODUCT-VISION.md`](../strategy/PRODUCT-VISION.md).
 
 ---
 
-## MVP — до 10K пользователей ✅ DONE
+## Foundation — до 10K пользователей ✅ DONE
 
-> **Версия:** [v0.1.0-mvp](../versions/v0.1.0-mvp.md) | **Branch:** `release/v0.1.0-mvp`
+### Phase 0 — MVP ✅ DONE
 
-### Phase 0.5 — Скелет ✅ DONE
+Полный цикл: admin верифицирует teacher → teacher создаёт курс с модулями и уроками → student находит курс → записывается → проходит уроки → видит прогресс → оставляет отзыв.
 
-> **Цель:** работающий каркас с auth, browsing, enrollment, payment, notifications.
+- 5 Python-сервисов (identity, course, enrollment, payment, notification)
+- Buyer frontend (Next.js): каталог, поиск, курс, уроки, прогресс, отзывы, admin
+- Docker Compose (dev + prod), Prometheus + Grafana, Locust, seed data
+- 113 тестов, baseline 55 RPS
 
-| Задача | Статус |
-|--------|--------|
-| uv workspace (Python) | ✅ |
-| Docker Compose: dev (hot reload) + prod (monitoring) | ✅ |
-| Prometheus + Grafana (RPS, latency, errors) | ✅ |
-| Locust сценарии (student, search, teacher, enrollment) | ✅ |
-| Seed script (50K users + 100K courses + 200K enrollments + 50K payments) | ✅ |
-| Shared library: config, errors, security (JWT), database (asyncpg) | ✅ |
-| Identity Service: register, login, GET /me (role + is_verified) | ✅ |
-| Course Service: CRUD, ILIKE search, role-based POST | ✅ |
-| Enrollment Service: POST /enrollments, GET /me, GET /count | ✅ |
-| Payment Service: POST /payments (mock), GET /me, GET /:id | ✅ |
-| Notification Service: POST, GET /me, PATCH /read | ✅ |
-| Buyer Frontend: каталог, поиск, enrollment, notifications | ✅ |
-| Unit тесты: 68 тестов по 5 сервисам (→ 113 с admin) | ✅ |
+### Phase 1 — Оптимизация + UX ✅ DONE
 
-**Результат:** Полный flow — регистрация → поиск → запись → оплата → уведомление. Но курс = пустая карточка.
+| Milestone | Что сделано | Результат |
+|-----------|-------------|-----------|
+| 1.0 | pg_trgm GIN index, pool 5→20 | search p99: 803ms → <50ms |
+| 1.1 | Redis cache, FK indexes, cursor pagination | 157 RPS, p99=51ms, pool 10% |
+| 1.2 | JWT refresh, rate limiting, CORS, XSS, health checks | 146 тестов |
+| 1.3 | Categories, email verify, forgot password, auto-completion, TanStack Query | 157 тестов |
+
+**Итого Foundation:** 157 тестов, 7 сервисов (5 backend + frontend + shared lib), полный user journey.
 
 ---
 
-### Phase 0.6 — Real MVP ✅ DONE
+## Learning Intelligence — 10K → 100K пользователей 🔵 IN PROGRESS
 
-> **Цель:** замкнуть цикл обучения. Студент может реально учиться, преподаватель видит результат.
-
-| # | Задача | Статус |
-|---|--------|--------|
-| **Контент** | | |
-| 0.6.1 | Модули и уроки внутри курса (Course Service: modules + lessons) | ✅ |
-| 0.6.2 | CRUD модулей и уроков (teacher) | ✅ |
-| 0.6.3 | Программа курса (GET /courses/:id/curriculum) | ✅ |
-| 0.6.4 | Страница урока (GET /lessons/:id — markdown + video embed) | ✅ |
-| **Прогресс** | | |
-| 0.6.5 | Отметка урока как пройденного (POST /progress/lessons/:id/complete) | ✅ |
-| 0.6.6 | Прогресс по курсу (GET /progress/courses/:id — % completion) | ✅ |
-| 0.6.7 | Автоматический completion при 100% | ⏳ Deferred |
-| **Teacher tools** | | |
-| 0.6.8 | GET /courses/my — курсы teacher с enrollment count | ✅ |
-| 0.6.9 | PUT /courses/:id — редактирование курса | ✅ |
-| 0.6.10 | Frontend: teacher dashboard page | ✅ |
-| **Reviews** | | |
-| 0.6.11 | POST /reviews + GET /reviews/course/:id (рейтинг 1-5 + текст) | ✅ |
-| 0.6.12 | Средний рейтинг на карточке курса | ✅ |
-| **Frontend** | | |
-| 0.6.13 | Страница урока с markdown-рендером и video embed | ✅ |
-| 0.6.14 | Прогресс-бар на странице курса | ✅ |
-| 0.6.15 | Форма отзыва + список отзывов | ✅ |
-| 0.6.16 | Teacher dashboard: мои курсы, кнопка "добавить урок" | ✅ |
-| **Инфра** | | |
-| 0.6.17 | Seed: модули + уроки для 100K courses | ✅ |
-| 0.6.18 | Seed: прогресс + reviews | ✅ |
-| 0.6.19 | Обновить architecture docs | ✅ |
-| **Admin & UX** | | |
-| 0.6.20 | Admin role + teacher verification API (Identity Service) | ✅ |
-| 0.6.21 | Admin panel frontend (/admin/teachers) | ✅ |
-| 0.6.22 | Teacher UX: redirect после создания, inline-редактирование уроков, баннер верификации | ✅ |
-| 0.6.23 | Student UX: фидбек после записи, мобильный sidebar, breadcrumbs, кнопка завершения | ✅ |
-| 0.6.24 | Seed: admin user (admin@eduplatform.com) | ✅ |
-
-**Результат:** 113 тестов. Полный цикл: admin верифицирует teacher → teacher создаёт курс → student записывается → проходит уроки → отзыв.
-
----
-
-### Phase 0.7 — Baseline & Bottlenecks ✅ DONE
-
-> **Цель:** снять baseline метрики на Real MVP и найти первые bottleneck-и.
-> Подробный отчёт — [`phases/PHASE-0.7-BASELINE.md`](../phases/PHASE-0.7-BASELINE.md).
-
-| # | Задача | Статус |
-|---|--------|--------|
-| 0.7.1 | Поднять prod stack (docker-compose.prod.yml) | ✅ |
-| 0.7.2 | Засеять полные данные (50K users + 100K courses + 200K enrollments + 100K reviews) | ✅ |
-| 0.7.3 | Запустить Locust: 100 users, ramp 10/s, 5 минут | ✅ |
-| 0.7.4 | DB pool метрики + Grafana dashboard (6 panels) | ✅ |
-| 0.7.5 | Найти bottleneck-и и приоритизировать | ✅ |
-
-### Замеренный baseline (v0.1.0)
-
-| Метрика | Значение | Статус |
-|---------|----------|--------|
-| Peak RPS | ~55 | Потолок текущей архитектуры |
-| Error rate | 0.5% | 80 login failures (проблема теста) |
-| Course search avg | **426ms** | P0 bottleneck |
-| Course search p99 | **803ms** | P0 bottleneck |
-| Course list avg | 52ms | OK |
-| Curriculum avg | 57ms | OK |
-| DB pool (Course) | **100% saturated** | P1 bottleneck |
-
-### Подтверждённые bottleneck-и
-
-| # | Bottleneck | Метрика | Приоритет |
-|---|-----------|---------|-----------|
-| 1 | ILIKE full table scan на 100K courses | search p99 = 803ms, avg 426ms | **P0** |
-| 2 | Connection pool exhaustion (Course service 5/5) | 100% saturation | **P1** |
-| 3 | Login failures в Locust (user ID mismatch) | 80 failed requests | P2 |
-
-### Опровергнутые гипотезы
-
-| Гипотеза | Результат |
-|----------|-----------|
-| Curriculum JOIN тормозит | ❌ 57ms — приемлемо |
-| Single-process bottleneck | ❌ 4 workers достаточно |
-| Large response sizes | ❌ 52ms — приемлемо |
-
----
-
-## Оптимизация — 10K → 100K пользователей 🔵 IN PROGRESS
-
-> **Цель:** устранить замеренные bottleneck-и, сделать продукт юзабельным. Те же сервисы, но работающие быстро и надёжно.
+> **Цель:** превратить "видеокурсник" в платформу ускоренного обучения.
+> Каждая фаза добавляет один evidence-based механизм повышения retention и completion.
 >
-> **Baseline:** 55 RPS, search p99 = 803ms, pool saturation 100%.
-> **Target:** 500 RPS, p99 < 200ms, 0 errors.
+> **Baseline (индустрия):** 13% completion rate, пассивное видео.
+> **Target:** 40%+ completion, 60%+ retention (7d), активное обучение.
 
-### Phase 1.0 — Critical Performance (P0/P1 bottleneck-и)
+### Phase 2.0 — AI Service + Quiz Foundation
 
-> Устранение замеренных bottleneck-ов. Каждый пункт подтверждён метриками из Phase 0.7.
-
-| # | Задача | Обоснование (метрика) | Ожидаемый эффект | Статус |
-|---|--------|----------------------|-----------------|--------|
-| 1.0.1 | pg_trgm + GIN index на courses.title, courses.description | search p99 = 803ms, avg 426ms (P0) | search p99: 800ms → <50ms | ✅ |
-| 1.0.2 | Connection pool 5 → 20 для всех сервисов | course pool 100% saturation (P1) | saturation: 100% → <50% | ✅ |
-| 1.0.3 | Fix Locust user ID ranges + seed password hash | 80 login failures (P2) | 0 test failures | ✅ |
-| 1.0.4 | Перезамерить: Locust 100 users, 5 min | Валидация оптимизаций | search p99 < 100ms, pool < 50% | ✅ |
-
-**Критерий:** search p99 < 100ms, pool saturation < 50%, 0 test errors.
-
----
-
-### Phase 1.1 — Caching & Indexes
-
-> Снижение нагрузки на БД. FK-индексы, Redis cache-aside, cursor pagination.
-
-| # | Задача | Обоснование | Статус |
-|---|--------|-------------|--------|
-| 1.1.1 | FK indexes: teacher_id, course_id, module_id, student_id, user_id (все сервисы) | PostgreSQL не создаёт индексы на FK → full table scan | ✅ |
-| 1.1.2 | Redis кэширование: course by id, curriculum (cache-aside, TTL 5 min) | Снижение DB reads для горячих данных | ✅ |
-| 1.1.3 | Cursor-based pagination (keyset) для courses list, search, my | Offset > 10K сканирует и отбрасывает строки | ✅ |
-| 1.1.4 | Перезамерить: Locust 200 users, 5 min | Валидация | ✅ |
-
-**Результат:** 157 RPS (200 users), p99 = 51ms, search p99 = 35ms (23x vs baseline), pool 10%. Подробности — [`phases/PHASE-1.1-RESULTS.md`](../phases/PHASE-1.1-RESULTS.md).
-
----
-
-### Phase 1.2 — Reliability & Security ✅ DONE
-
-> Продукт должен быть не только быстрым, но и надёжным для реальных пользователей.
-
-**Результат:** 146 тестов по 5 сервисам. Health checks, graceful shutdown, CORS, rate limiting, XSS sanitization, JWT refresh token rotation.
+> **Цель:** от пассивного видео к активному обучению. Квизы после каждого урока.
 
 | # | Задача | Зачем | Статус |
 |---|--------|-------|--------|
-| 1.2.1 | JWT refresh tokens (rotation + reuse detection) | Пользователи не должны re-login каждый час | ✅ |
-| 1.2.2 | Rate limiting на API (per-IP sliding window, Redis) | Защита от abuse | ✅ |
-| 1.2.3 | CORS настройка (env-based origins) | Безопасность | ✅ |
-| 1.2.4 | Input sanitization (XSS в course/lesson content, bleach) | UGC безопасность | ✅ |
-| 1.2.5 | Graceful shutdown (SIGTERM, timeout-graceful-shutdown) | Zero-downtime deploys | ✅ |
-| 1.2.6 | Health check endpoints (/health/live + /health/ready) | Container orchestration | ✅ |
+| 2.0.1 | AI Service (Python): model routing (cheap/mid/expensive) | Центральная точка LLM-вызовов | 🔴 |
+| 2.0.2 | Gemini Flash API интеграция + Redis кэширование ответов | Дешёвая генерация ($0.08/M tokens) | 🔴 |
+| 2.0.3 | Quiz model в Learning Engine: questions, answers, attempts | Активное вспоминание | 🔴 |
+| 2.0.4 | AI Quiz Generator: авто-генерация вопросов из lesson content | Масштабирование без ручной работы | 🔴 |
+| 2.0.5 | AI Lesson Summary: краткое содержание каждого урока | Быстрый повтор | 🔴 |
+| 2.0.6 | Frontend: quiz UI после урока + summary блок | UX активного обучения | 🔴 |
+| 2.0.7 | Тесты: AI service + learning engine + frontend | Качество | 🔴 |
+
+**Метрики:** quiz completion rate, accuracy, time-on-quiz.
+**Evidence:** Active recall → +25% retention vs passive review.
 
 ---
 
-### Phase 1.3 — UX & Product Quality ✅ DONE
+### Phase 2.1 — Spaced Repetition + Flashcards
 
-> От «работает» к «приятно пользоваться».
-
-**Результат:** 157 тестов по 5 сервисам (identity 48, course 59, enrollment 25, payment 13, notification 12). Категории + фильтрация, email verification, forgot password, auto-completion, TanStack Query, error boundaries.
+> **Цель:** долгосрочное запоминание через научно обоснованное повторение.
 
 | # | Задача | Зачем | Статус |
 |---|--------|-------|--------|
-| 1.3.1 | Error boundaries + loading states (frontend) | UX при ошибках и загрузке | ✅ |
-| 1.3.2 | Email-верификация при регистрации | Качество user base | ✅ |
-| 1.3.3 | Сброс пароля (forgot password flow) | Базовая функциональность | ✅ |
-| 1.3.4 | Категории курсов + фильтрация + сортировка | Навигация по каталогу | ✅ |
-| 1.3.5 | Автоматический completion курса при 100% уроков | Deferred из Phase 0.6 | ✅ |
-| 1.3.6 | Frontend: TanStack Query + оптимистичные обновления | Отзывчивый UI | ✅ |
+| 2.1.1 | FSRS интеграция (py-fsrs, open source) | Алгоритм оптимального повторения | 🔴 |
+| 2.1.2 | Flashcard model: cards из quiz-ошибок + ключевые концепты | Автоматическая генерация карточек | 🔴 |
+| 2.1.3 | Smart notifications: FSRS-scheduled review reminders | "Пора повторить!" в нужный момент | 🔴 |
+| 2.1.4 | Frontend: flashcard UI (swipe, rate difficulty) | UX повторения | 🔴 |
+| 2.1.5 | "Review due" badge в header + dashboard | Вовлечение | 🔴 |
+| 2.1.6 | Тесты: FSRS scheduling, card CRUD | Качество | 🔴 |
+
+**Метрики:** retention rate (7d, 30d), review streak, забывание vs baseline.
+**Evidence:** Spaced repetition → +60% long-term retention vs massed study.
 
 ---
 
-### Phase 1.4 — Финальный замер
+### Phase 2.2 — Socratic AI Tutor
 
-| # | Задача | Статус |
-|---|--------|--------|
-| 1.4.1 | Locust: 500 users, ramp 50/s, 10 min | 🔴 |
-| 1.4.2 | Зафиксировать метрики, сравнить с baseline v0.1.0 | 🔴 |
-| 1.4.3 | Определить следующие bottleneck-и для Phase 2 | 🔴 |
+> **Цель:** глубокое понимание через диалог. AI не даёт ответ — ведёт к нему.
 
-**Критерий перехода:** стабильно 500 RPS, p99 < 200ms, 0 ошибок при 10-минутном load test.
+| # | Задача | Зачем | Статус |
+|---|--------|-------|--------|
+| 2.2.1 | Chat interface per lesson (ask questions about content) | Контекстная помощь | 🔴 |
+| 2.2.2 | Socratic prompt pipeline (Claude Haiku) | Наводящие вопросы вместо ответов | 🔴 |
+| 2.2.3 | Контекст: lesson content как RAG-источник | Тьютор знает материал урока | 🔴 |
+| 2.2.4 | Rate tutor response (thumbs up/down) | Улучшение промптов | 🔴 |
+| 2.2.5 | Frontend: chat drawer на странице урока | UX | 🔴 |
+| 2.2.6 | Тесты: tutor service, prompt pipeline | Качество | 🔴 |
 
----
-
-## Масштабирование — 100K → 1M пользователей
-
-> **Цель:** выход за пределы одного Python процесса.
-
-| Задача | Статус | Зачем |
-|--------|--------|-------|
-| API Gateway (Rust/Axum) | 🔴 | Auth middleware, rate limiting, routing |
-| Search Service (Rust) + Meilisearch | 🔴 | ILIKE/pg_trgm не масштабируется за 100K |
-| NATS JetStream: event bus | 🔴 | Асинхронная связь между сервисами |
-| PostgreSQL read replicas | 🔴 | Разделение read/write нагрузки |
-| Video platform: upload → transcode → stream | 🔴 | Замена YouTube/Vimeo ссылок |
-| Teacher Dashboard (Next.js — seller app) | 🔴 | Полноценное управление курсами |
-| Protobuf контракты | 🔴 | Source of truth для межсервисного API |
-| CI/CD: GitHub Actions | 🔴 | Lint → test → build → deploy |
-| Kubernetes manifests | 🔴 | Auto-scaling, rolling deploys |
-
-**Критерий перехода:** 5K RPS, горизонтальное масштабирование, event-driven.
+**Метрики:** questions asked/lesson, understanding score, NPS.
+**Evidence:** Socratic method → deeper conceptual understanding (Khanmigo model).
 
 ---
 
-## Платформа — 1M → 10M пользователей
+### Phase 2.3 — Knowledge Graph + Adaptive Path
 
-> **Цель:** платформа enterprise-уровня. Multi-region, видео, real-time, ML.
+> **Цель:** персонализация. Пропускай известное, фокусируйся на пробелах.
 
-| Задача | Статус | Зачем |
-|--------|--------|-------|
-| PostgreSQL → Citus (sharding) | 🔴 | Одна БД не вытянет 10M users |
-| Multi-region active-active | 🔴 | Latency для юзеров в разных регионах |
-| Live streaming lessons | 🔴 | Real-time обучение |
-| Рекомендации (ML) | 🔴 | Персонализация каталога |
-| ClickHouse для аналитики | 🔴 | Real-time dashboards для преподавателей |
-| Teacher API + webhooks | 🔴 | Платформенная экосистема |
-| Mobile PWA / native apps | 🔴 | 80% трафика — мобильный |
-| CDN: multi-CDN strategy | 🔴 | Видео и статика по всему миру |
-| Chaos engineering | 🔴 | Graceful degradation |
+| # | Задача | Зачем | Статус |
+|---|--------|-------|--------|
+| 2.3.1 | Concept model: knowledge points per course (teacher-defined) | Граф знаний курса | 🔴 |
+| 2.3.2 | Concept mastery tracking (per-student, 0.0→1.0) | Персональный уровень | 🔴 |
+| 2.3.3 | Adaptive pre-test: входной тест → определение уровня | Пропуск изученного | 🔴 |
+| 2.3.4 | Learning Velocity Dashboard: concepts/hour, тренд | Метакогниция | 🔴 |
+| 2.3.5 | Frontend: knowledge graph visualization (force-directed) | Визуальная карта знаний | 🔴 |
+| 2.3.6 | Teacher UI: тегирование concepts per lesson | Создание графа | 🔴 |
+| 2.3.7 | Тесты: concept CRUD, mastery, adaptive path | Качество | 🔴 |
 
-**Критерий завершения:** 50K+ RPS, multi-region, 99.99% uptime.
+**Метрики:** time-to-competency, concepts mastered/week, skip rate.
+**Evidence:** Squirrel AI knowledge graph (10K+ points) → TIME Best Invention 2025.
+
+---
+
+### Phase 2.4 — Gamification + Community
+
+> **Цель:** мотивация и accountability. Превратить обучение в привычку.
+
+| # | Задача | Зачем | Статус |
+|---|--------|-------|--------|
+| 2.4.1 | XP system: earn XP за lesson/quiz/review/flashcard | Мотивация | 🔴 |
+| 2.4.2 | Streaks: daily learning streak (модель Duolingo) | Привычка | 🔴 |
+| 2.4.3 | Badges/achievements (first course, 7-day streak, 100% mastery) | Milestones | 🔴 |
+| 2.4.4 | Leaderboard per course (opt-in) | Соревнование | 🔴 |
+| 2.4.5 | Course discussions: комментарии per lesson | Сообщество | 🔴 |
+| 2.4.6 | Frontend: XP counter, streak flame, badge shelf | UX | 🔴 |
+| 2.4.7 | Notification: streak at risk reminders | Retention | 🔴 |
+| 2.4.8 | Тесты: XP calculation, streak logic, badges | Качество | 🔴 |
+
+**Метрики:** DAU/MAU ratio, streak > 7d %, completion rate delta.
+**Evidence:** Gamification + community → up to 96% completion rate.
+
+---
+
+### Phase 2.5 — MVP Polish + Demo Ready
+
+> **Цель:** продукт готов к показу первым пользователям и инвесторам.
+
+| # | Задача | Зачем | Статус |
+|---|--------|-------|--------|
+| 2.5.1 | Onboarding flow: guided first course experience | First-time UX | 🔴 |
+| 2.5.2 | Landing page: value proposition, demo видео | Конверсия | 🔴 |
+| 2.5.3 | Responsive mobile web | Мобильный доступ | 🔴 |
+| 2.5.4 | Demo script update: показывает AI-фичи | Презентация | 🔴 |
+| 2.5.5 | Seed data: courses с квизами, flashcards, concepts | Демо-данные | 🔴 |
+| 2.5.6 | Bug fixes, UI polish, error states | Качество | 🔴 |
+
+**Критерий:** можно показать продукт, провести demo, получить feedback.
+
+---
+
+## Growth — 100K → 1M пользователей (после MVP)
+
+> Монетизация, teacher tools, инфраструктура. Только после валидации Learning Intelligence.
+
+| Milestone | Содержание | Статус |
+|-----------|-----------|--------|
+| 3.1 | Реальные платежи (Stripe) + subscription tiers | 🔴 |
+| 3.2 | Seller App: teacher dashboard, аналитика, revenue | 🔴 |
+| 3.3 | SEO: meta tags, structured data, OG | 🔴 |
+| 3.4 | CI/CD: GitHub Actions (lint → test → build) | 🔴 |
+| 3.5 | Email delivery (SMTP/Resend вместо stub) | 🔴 |
+| 3.6 | Certificate generation (PDF) | 🔴 |
+
+---
+
+## Scale — 1M → 10M пользователей (далёкое будущее)
+
+> Тяжёлая инфраструктура. Только когда Growth упрётся в потолок.
+
+| Milestone | Содержание | Статус |
+|-----------|-----------|--------|
+| 4.1 | API Gateway (Rust/Axum) | 🔴 |
+| 4.2 | NATS JetStream event bus | 🔴 |
+| 4.3 | Video platform (upload → transcode → HLS) | 🔴 |
+| 4.4 | PostgreSQL read replicas / Citus | 🔴 |
+| 4.5 | Self-hosted SLM (замена API на свои модели) | 🔴 |
+| 4.6 | Multi-region, K8s, auto-scaling | 🔴 |
 
 ---
 
 ## Принцип принятия решений
 
 ```
-Не оптимизировать ДО того, как увидел проблему в метриках.
-Не масштабировать ДО того, как текущая архитектура упёрлась в потолок.
-Не переписывать на Rust ДО того, как Python стал bottleneck-ом.
-Каждое решение — ответ на конкретную проблему, видимую в Grafana.
+Сначала продукт, потом инфраструктура.
+Сначала фичи, которые меняют метрики обучения, потом оптимизация.
+Каждая фича — ответ на конкретную проблему (87% курсов не завершаются).
+Не масштабировать ДО того, как продукт доказал ценность.
+AI дешёвый ($0.03/user/мес) — не бояться внедрять.
 ```

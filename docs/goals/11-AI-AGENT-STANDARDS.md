@@ -1,7 +1,7 @@
 # 11 — AI Agent Standards & MCP Protocol
 
 > Владелец: Architect / Tech Lead
-> Последнее обновление: 2026-02-21
+> Последнее обновление: 2026-02-24
 > Источник: [Thoughtworks Technology Radar Vol. 33](https://www.thoughtworks.com/radar)
 
 ---
@@ -220,36 +220,36 @@ Radar рекомендует AGENTS.md (и аналоги) как стандар
 
 ## 8. Implementation Roadmap
 
-### Phase 0.7 — Baseline ✅ DONE
+### Phase 1 — Foundation ✅ DONE
 
 - [x] CLAUDE.md содержит правила для coding agents
 - [x] AI-safety раздел в CLAUDE.md (CA-1)
 - [x] "Не трогать" зоны определены в CLAUDE.md (CA-2)
 
-### Phase 1.0 — Оптимизация
+### Phase 2 — Learning Intelligence (текущая)
 
-- [ ] Экспортировать OpenAPI specs (MCP-1)
-- [ ] Semantic descriptions на endpoints (MCP-2)
-- [ ] Enriched context в API responses (CE-1, CE-2, CE-3)
-- [ ] Spec-driven development workflow (SPEC-1, SPEC-2)
-- [ ] AI code review checklist (CA-4)
+> AI Service (:8006) и Learning Engine (:8007) — первое реальное внедрение AI в продукт.
 
-### Phase 2.0 — Масштабирование
+- [ ] 🔵 AI Service: model routing (Gemini Flash / Claude Haiku / Claude Sonnet)
+- [ ] 🔵 UGC sanitization перед подачей в LLM (SEC-AI-1)
+- [ ] 🔵 AI action audit log (SEC-AI-3)
+- [ ] 🔵 Semantic descriptions на endpoints (MCP-2)
+- [ ] 🔵 Enriched context в API responses (CE-1, CE-2, CE-3)
 
-- [ ] MCP Server для Course + Enrollment (MCP-3, MCP-4, MCP-5)
-- [ ] AI rate limiting tier (MCP-6)
+### Phase 3 — Growth
+
+- [ ] Экспортировать OpenAPI specs как артефакт (MCP-1)
+- [ ] MCP Server для Course + Enrollment + AI (MCP-3, MCP-4, MCP-5)
 - [ ] PII masking с Presidio (SEC-AI-2)
-- [ ] AI action audit log (SEC-AI-3)
-- [ ] MCP Tools validation (SEC-AI-4)
-- [ ] Proto контракты (SPEC-3)
+- [ ] AI rate limiting tier (MCP-6)
+- [ ] Spec-driven development workflow (SPEC-1, SPEC-2)
 
-### Phase 3.0 — Платформа
+### Phase 4 — Scale
 
 - [ ] AI Gateway (centralised LLM access control)
 - [ ] NeMo Guardrails (SEC-AI-7)
-- [ ] Toxic flow analysis (SEC-AI-6)
-- [ ] Self-hosted inference evaluation (vLLM)
-- [ ] Recommendation engine с ML pipeline
+- [ ] Self-hosted SLM (replace 80% API calls) → full PII containment
+- [ ] Proto контракты gRPC (SPEC-3)
 
 ---
 

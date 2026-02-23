@@ -1,7 +1,7 @@
 # 05 — Стратегия данных
 
 > Владелец: Architect / Data Lead
-> Последнее обновление: 2026-02-20
+> Последнее обновление: 2026-02-24
 
 ---
 
@@ -18,6 +18,13 @@
 | Сообщения | 1B записей, ~2TB | +15% | PostgreSQL + Archive |
 | Events (analytics) | 50B событий, ~10TB | +20% | ClickHouse |
 | Search index | ~10GB active | +10% | Meilisearch/ES |
+| **Learning Data (Phase 2)** | | | |
+| Quiz responses | 500M записей, ~100GB | +15% | PostgreSQL (learning-db) |
+| Flashcard reviews (FSRS) | 2B записей, ~400GB | +20% | PostgreSQL (learning-db) |
+| Concept mastery | 100M записей, ~20GB | +10% | PostgreSQL (learning-db) |
+| Knowledge graph (concepts + edges) | 10M nodes, ~5GB | +5% | PostgreSQL (learning-db) |
+| AI prompt/response cache | ~10GB | stable | Redis |
+| Embeddings (pgvector) | 5M vectors, ~10GB | +8% | PostgreSQL (ai-db) |
 | Cache (hot data) | ~50GB | stable | Redis |
 
 ---
