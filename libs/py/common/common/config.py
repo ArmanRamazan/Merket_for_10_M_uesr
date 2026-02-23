@@ -9,3 +9,5 @@ class BaseAppSettings(BaseSettings):
     jwt_secret: str = "change-me-in-production"
     jwt_algorithm: str = "HS256"
     jwt_ttl_seconds: int = 3600
+    allowed_origins: str = "http://localhost:3000,http://localhost:3001"
+    rate_limit_per_minute: int = 100

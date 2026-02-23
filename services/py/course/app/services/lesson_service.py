@@ -4,6 +4,7 @@ from uuid import UUID
 
 from common.errors import ForbiddenError, NotFoundError
 from app.cache import CourseCache
+from app.sanitize import sanitize_text, sanitize_html
 from app.domain.lesson import Lesson
 from app.domain.module import Module
 from app.repositories.course_repo import CourseRepository
@@ -50,6 +51,8 @@ class LessonService:
         if role != "teacher" or not is_verified:
             raise ForbiddenError("Only verified teachers can manage lessons")
         module = await self._check_owner_via_module(module_id, teacher_id)
+        title = sanitize_text(title)
+        content = sanitize_html(content)
         lesson = await self._repo.create(module_id, title, content, video_url, duration_minutes, order)
         if self._cache:
             await self._cache.invalidate_course(module.course_id)
@@ -70,6 +73,10 @@ class LessonService:
         if not lesson:
             raise NotFoundError("Lesson not found")
         module = await self._check_owner_via_module(lesson.module_id, teacher_id)
+        if "title" in fields and isinstance(fields["title"], str):
+            fields["title"] = sanitize_text(fields["title"])
+        if "content" in fields and isinstance(fields["content"], str):
+            fields["content"] = sanitize_html(fields["content"])
         updated = await self._repo.update(lesson_id, **fields)
         if not updated:
             raise NotFoundError("Lesson not found")

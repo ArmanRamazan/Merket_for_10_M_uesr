@@ -12,6 +12,7 @@ import bcrypt
 
 from app.domain.user import User, UserRole
 from app.repositories.user_repo import UserRepository
+from app.repositories.token_repo import TokenRepository
 from app.services.auth_service import AuthService
 
 
@@ -78,12 +79,19 @@ def mock_repo():
 
 
 @pytest.fixture
-def auth_service(mock_repo):
+def mock_token_repo():
+    return AsyncMock(spec=TokenRepository)
+
+
+@pytest.fixture
+def auth_service(mock_repo, mock_token_repo):
     return AuthService(
         repo=mock_repo,
         jwt_secret="test-secret",
         jwt_algorithm="HS256",
         jwt_ttl_seconds=3600,
+        token_repo=mock_token_repo,
+        refresh_token_ttl_days=30,
     )
 
 

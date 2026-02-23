@@ -1,7 +1,7 @@
 # 02 — API Reference
 
-> Последнее обновление: 2026-02-21
-> Стадия: MVP (Phase 0)
+> Последнее обновление: 2026-02-23
+> Стадия: Phase 1.2 (Reliability & Security)
 
 ---
 
@@ -25,6 +25,7 @@
 ```json
 {
   "access_token": "eyJhbGciOiJIUzI1NiIs...",
+  "refresh_token": "urlsafe-base64-token...",
   "token_type": "bearer"
 }
 ```
@@ -34,6 +35,7 @@
 |------|---------|
 | 409 | Email уже зарегистрирован |
 | 422 | Невалидные данные (email формат, пустые поля) |
+| 429 | Too many registration attempts (5/min per IP) |
 
 ---
 
@@ -53,6 +55,7 @@
 ```json
 {
   "access_token": "eyJhbGciOiJIUzI1NiIs...",
+  "refresh_token": "urlsafe-base64-token...",
   "token_type": "bearer"
 }
 ```
@@ -62,6 +65,7 @@
 |------|---------|
 | 400 | Неверный email или пароль |
 | 422 | Невалидные данные |
+| 429 | Too many login attempts (10/min per IP) |
 
 ---
 
@@ -87,6 +91,67 @@
 | Code | Причина |
 |------|---------|
 | 401 | Отсутствует или невалидный токен |
+
+---
+
+### POST /refresh
+
+Обновление пары токенов. Refresh token rotation — старый токен инвалидируется.
+
+**Request:**
+```json
+{
+  "refresh_token": "urlsafe-base64-token..."
+}
+```
+
+**Response `200`:**
+```json
+{
+  "access_token": "new-access-token...",
+  "refresh_token": "new-refresh-token...",
+  "token_type": "bearer"
+}
+```
+
+**Errors:**
+| Code | Причина |
+|------|---------|
+| 401 | Невалидный, просроченный или повторно использованный refresh token |
+
+> Token reuse detection: если revoked token используется повторно, вся token family отзывается.
+
+---
+
+### POST /logout
+
+Отзыв refresh token family (выход с устройства).
+
+**Request:**
+```json
+{
+  "refresh_token": "urlsafe-base64-token..."
+}
+```
+
+**Response `204`:** No content.
+
+---
+
+### Health Check Endpoints (все сервисы)
+
+#### GET /health/live
+
+Liveness probe. Всегда 200 если процесс жив.
+
+**Response `200`:** `{"status": "ok"}`
+
+#### GET /health/ready
+
+Readiness probe. Проверяет PostgreSQL и Redis (если есть).
+
+**Response `200`:** `{"status": "ok", "checks": {"postgres": "ok", "redis": "ok"}}`
+**Response `503`:** `{"status": "degraded", "checks": {"postgres": "unavailable"}}`
 
 ---
 

@@ -5,6 +5,7 @@ from uuid import UUID
 
 from common.errors import ForbiddenError, NotFoundError
 from app.cache import CourseCache
+from app.sanitize import sanitize_text, sanitize_html
 from app.domain.course import Course, CourseLevel, CourseResponse, CurriculumModule, CurriculumResponse
 from app.domain.lesson import LessonResponse
 from app.repositories.course_repo import CourseRepository
@@ -41,6 +42,8 @@ class CourseService:
             raise ForbiddenError("Only teachers can create courses")
         if not is_verified:
             raise ForbiddenError("Only verified teachers can create courses")
+        title = sanitize_text(title)
+        description = sanitize_html(description)
         return await self._repo.create(
             teacher_id, title, description, is_free, price, duration_minutes, level
         )
@@ -125,6 +128,10 @@ class CourseService:
             raise NotFoundError("Course not found")
         if course.teacher_id != teacher_id:
             raise ForbiddenError("Only the course owner can update this course")
+        if "title" in fields and isinstance(fields["title"], str):
+            fields["title"] = sanitize_text(fields["title"])
+        if "description" in fields and isinstance(fields["description"], str):
+            fields["description"] = sanitize_html(fields["description"])
         updated = await self._repo.update(course_id, **fields)
         if not updated:
             raise NotFoundError("Course not found")

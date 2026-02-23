@@ -6,6 +6,7 @@ import asyncpg
 
 from common.errors import ConflictError, ForbiddenError, NotFoundError
 from app.cache import CourseCache
+from app.sanitize import sanitize_text
 from app.domain.review import Review
 from app.repositories.course_repo import CourseRepository
 from app.repositories.review_repo import ReviewRepository
@@ -36,6 +37,8 @@ class ReviewService:
         course = await self._course_repo.get_by_id(course_id)
         if not course:
             raise NotFoundError("Course not found")
+
+        comment = sanitize_text(comment)
 
         try:
             review = await self._repo.create(student_id, course_id, rating, comment)

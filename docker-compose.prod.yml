@@ -107,16 +107,18 @@ services:
       DATABASE_URL: postgresql://identity:${IDENTITY_DB_PASSWORD:-identity}@identity-db:5432/identity
       REDIS_URL: redis://redis:6379
       JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8001 --workers 4
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:3001}
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8001 --workers 4 --timeout-graceful-shutdown 25
     depends_on:
       identity-db:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/docs')"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8001/health/live')"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 15s
+    stop_grace_period: 30s
     restart: unless-stopped
 
   course:
@@ -129,16 +131,18 @@ services:
       DATABASE_URL: postgresql://course:${COURSE_DB_PASSWORD:-course}@course-db:5432/course
       REDIS_URL: redis://redis:6379
       JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8002 --workers 4
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:3001}
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8002 --workers 4 --timeout-graceful-shutdown 25
     depends_on:
       course-db:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8002/docs')"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8002/health/live')"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 15s
+    stop_grace_period: 30s
     restart: unless-stopped
 
   enrollment:
@@ -151,16 +155,18 @@ services:
       DATABASE_URL: postgresql://enrollment:${ENROLLMENT_DB_PASSWORD:-enrollment}@enrollment-db:5432/enrollment
       REDIS_URL: redis://redis:6379
       JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8003 --workers 4
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:3001}
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8003 --workers 4 --timeout-graceful-shutdown 25
     depends_on:
       enrollment-db:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8003/docs')"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8003/health/live')"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 15s
+    stop_grace_period: 30s
     restart: unless-stopped
 
   payment:
@@ -173,16 +179,18 @@ services:
       DATABASE_URL: postgresql://payment:${PAYMENT_DB_PASSWORD:-payment}@payment-db:5432/payment
       REDIS_URL: redis://redis:6379
       JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8004 --workers 4
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:3001}
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8004 --workers 4 --timeout-graceful-shutdown 25
     depends_on:
       payment-db:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8004/docs')"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8004/health/live')"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 15s
+    stop_grace_period: 30s
     restart: unless-stopped
 
   notification:
@@ -195,16 +203,18 @@ services:
       DATABASE_URL: postgresql://notification:${NOTIFICATION_DB_PASSWORD:-notification}@notification-db:5432/notification
       REDIS_URL: redis://redis:6379
       JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8005 --workers 4
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:3001}
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8005 --workers 4 --timeout-graceful-shutdown 25
     depends_on:
       notification-db:
         condition: service_healthy
     healthcheck:
-      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8005/docs')"]
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8005/health/live')"]
       interval: 10s
       timeout: 5s
       retries: 5
       start_period: 15s
+    stop_grace_period: 30s
     restart: unless-stopped
 
   seed:

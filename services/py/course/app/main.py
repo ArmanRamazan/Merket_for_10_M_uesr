@@ -3,11 +3,14 @@ from collections.abc import AsyncIterator
 
 import asyncpg
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from prometheus_fastapi_instrumentator import Instrumentator
 from redis.asyncio import Redis
 
 from common.database import create_pool, update_pool_metrics
 from common.errors import register_error_handlers
+from common.health import create_health_router
+from common.rate_limit import RateLimitMiddleware
 from app.cache import CourseCache
 from app.config import Settings
 from app.repositories.course_repo import CourseRepository
@@ -94,10 +97,24 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
 
 app = FastAPI(title="Course Service", lifespan=lifespan)
 register_error_handlers(app)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=app_settings.allowed_origins.split(","),
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+app.add_middleware(
+    RateLimitMiddleware,
+    redis_getter=lambda: _redis,
+    limit=app_settings.rate_limit_per_minute,
+    window=60,
+)
 app.include_router(courses_router)
 app.include_router(modules_router)
 app.include_router(lessons_router)
 app.include_router(reviews_router)
+app.include_router(create_health_router(lambda: _pool, lambda: _redis))
 
 
 @app.middleware("http")

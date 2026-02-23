@@ -19,7 +19,8 @@ RUN uv venv /app/.venv \
         "pyjwt>=2.10" \
         "pydantic-settings>=2.7" \
         "email-validator>=2.0" \
-        "prometheus-fastapi-instrumentator>=7.0"
+        "prometheus-fastapi-instrumentator>=7.0" \
+        "redis>=5.0"
 
 ENV PATH="/app/.venv/bin:$PATH"
 

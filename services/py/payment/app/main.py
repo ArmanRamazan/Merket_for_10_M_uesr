@@ -3,10 +3,14 @@ from collections.abc import AsyncIterator
 
 import asyncpg
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from prometheus_fastapi_instrumentator import Instrumentator
+from redis.asyncio import Redis
 
 from common.database import create_pool, update_pool_metrics
 from common.errors import register_error_handlers
+from common.health import create_health_router
+from common.rate_limit import RateLimitMiddleware
 from app.config import Settings
 from app.repositories.payment_repo import PaymentRepository
 from app.services.payment_service import PaymentService
@@ -15,6 +19,7 @@ from app.routes.payments import router as payments_router
 app_settings = Settings()
 
 _pool: asyncpg.Pool | None = None
+_redis: Redis | None = None
 _payment_service: PaymentService | None = None
 
 
@@ -25,7 +30,7 @@ def get_payment_service() -> PaymentService:
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
-    global _pool, _payment_service
+    global _pool, _redis, _payment_service
 
     _pool = await create_pool(
         app_settings.database_url,
@@ -39,15 +44,32 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         with open("migrations/002_indexes.sql") as f:
             await conn.execute(f.read())
 
+    _redis = Redis.from_url(app_settings.redis_url)
+
     repo = PaymentRepository(_pool)
     _payment_service = PaymentService(repo)
     yield
+    await _redis.aclose()
     await _pool.close()
 
 
 app = FastAPI(title="Payment Service", lifespan=lifespan)
 register_error_handlers(app)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=app_settings.allowed_origins.split(","),
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+app.add_middleware(
+    RateLimitMiddleware,
+    redis_getter=lambda: _redis,
+    limit=app_settings.rate_limit_per_minute,
+    window=60,
+)
 app.include_router(payments_router)
+app.include_router(create_health_router(lambda: _pool, lambda: _redis))
 
 
 @app.middleware("http")

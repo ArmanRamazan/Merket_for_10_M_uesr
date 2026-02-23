@@ -4,6 +4,7 @@ from uuid import UUID
 
 from common.errors import ForbiddenError, NotFoundError
 from app.cache import CourseCache
+from app.sanitize import sanitize_text
 from app.domain.module import Module
 from app.repositories.course_repo import CourseRepository
 from app.repositories.module_repo import ModuleRepository
@@ -33,6 +34,7 @@ class ModuleService:
         if role != "teacher" or not is_verified:
             raise ForbiddenError("Only verified teachers can manage modules")
         await self._check_owner(course_id, teacher_id)
+        title = sanitize_text(title)
         module = await self._repo.create(course_id, title, order)
         if self._cache:
             await self._cache.invalidate_course(course_id)
@@ -50,6 +52,8 @@ class ModuleService:
         if not module:
             raise NotFoundError("Module not found")
         await self._check_owner(module.course_id, teacher_id)
+        if "title" in fields and isinstance(fields["title"], str):
+            fields["title"] = sanitize_text(fields["title"])
         updated = await self._repo.update(module_id, **fields)
         if not updated:
             raise NotFoundError("Module not found")

@@ -1,7 +1,7 @@
 # 05 — Infrastructure & Docker
 
-> Последнее обновление: 2026-02-21
-> Стадия: MVP (Phase 0)
+> Последнее обновление: 2026-02-23
+> Стадия: Phase 1.2 (Reliability & Security)
 
 ---
 
@@ -17,6 +17,7 @@ docker compose -f docker-compose.dev.yml up
 - Debug ports для БД доступны с хоста
 - Без мониторинга (нет Prometheus/Grafana)
 - `--reload` флаг для uvicorn
+- Graceful shutdown: `--timeout-graceful-shutdown 10`
 
 **Сервисы:**
 | Container | Image / Build | Порт |
@@ -44,6 +45,9 @@ docker compose -f docker-compose.prod.yml up -d
 - Prometheus + Grafana мониторинг
 - Locust нагрузочное тестирование (profile)
 - Без volume mounts (код запечён в image)
+- Graceful shutdown: `--timeout-graceful-shutdown 25`, `stop_grace_period: 30s`
+- CORS: настраивается через `ALLOWED_ORIGINS` env var
+- Rate limiting: per-IP через Redis sliding window
 
 **Дополнительные сервисы:**
 | Container | Image | Порт |
@@ -105,10 +109,22 @@ CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "<port>"]
 | Variable | Default | Описание |
 |----------|---------|----------|
 | `DATABASE_URL` | — (required) | PostgreSQL DSN |
-| `REDIS_URL` | `redis://localhost:6379` | Redis DSN (unused) |
+| `REDIS_URL` | `redis://redis:6379` | Redis DSN (rate limiting, кэш) |
 | `JWT_SECRET` | `change-me-in-production` | Shared JWT secret |
 | `JWT_ALGORITHM` | `HS256` | JWT signing algorithm |
-| `JWT_TTL_SECONDS` | `3600` | Token lifetime |
+| `JWT_TTL_SECONDS` | `3600` | Access token lifetime |
+| `ALLOWED_ORIGINS` | `http://localhost:3000,http://localhost:3001` | CORS allowed origins (comma-separated) |
+| `RATE_LIMIT_PER_MINUTE` | `100` | Global per-IP rate limit |
+
+### Identity-specific
+
+| Variable | Default | Описание |
+|----------|---------|----------|
+| `REFRESH_TOKEN_TTL_DAYS` | `30` | Refresh token lifetime |
+
+Endpoint-specific rate limits (Identity, не настраиваемые):
+- `POST /login` — 10 req/min per IP
+- `POST /register` — 5 req/min per IP
 
 ### Dev compose values
 
@@ -195,6 +211,8 @@ Locust UI: http://localhost:8089
 
 ## Health Checks
 
+### Infrastructure (Docker healthcheck)
+
 | Container | Check | Interval | Timeout | Retries |
 |-----------|-------|----------|---------|---------|
 | identity-db | `pg_isready -U identity` | 5s | 3s | 5 |
@@ -205,6 +223,39 @@ Locust UI: http://localhost:8089
 | redis | `redis-cli ping` | 5s | 3s | 5 |
 
 Все сервисы запускаются после `service_healthy` condition на своих БД.
+
+### Application-level (все 5 Python сервисов)
+
+| Endpoint | Описание | Checks |
+|----------|----------|--------|
+| `GET /health/live` | Liveness probe — процесс жив | Всегда `{"status": "ok"}`, 200 |
+| `GET /health/ready` | Readiness probe — зависимости доступны | PostgreSQL pool + Redis ping; 503 если недоступны |
+
+Docker healthcheck в prod compose использует `/health/live` (python urllib, без curl).
+
+Реализация: `libs/py/common/common/health.py` — фабрика `create_health_router(pool_getter, redis_getter=None)`.
+
+---
+
+## Graceful Shutdown
+
+Uvicorn обрабатывает SIGTERM: перестаёт принимать новые соединения, ждёт завершения in-flight requests. Lifespan cleanup закрывает pool и redis.
+
+| Режим | `--timeout-graceful-shutdown` | `stop_grace_period` |
+|-------|-------------------------------|---------------------|
+| Dev | 10s | — |
+| Prod | 25s | 30s |
+
+---
+
+## Middleware Stack (все сервисы)
+
+Порядок middleware (снаружи внутрь):
+
+1. **CORS** (`CORSMiddleware`) — origins из `ALLOWED_ORIGINS`, credentials=true
+2. **Rate Limiting** (`RateLimitMiddleware`) — per-IP sliding window через Redis
+3. **Pool Metrics** — обновление Prometheus gauge (pool size/free)
+4. **Prometheus Instrumentator** — HTTP request metrics
 
 ---
 

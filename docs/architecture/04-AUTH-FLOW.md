@@ -1,7 +1,7 @@
 # 04 — Authentication Flow
 
-> Последнее обновление: 2026-02-21
-> Стадия: MVP (Phase 0)
+> Последнее обновление: 2026-02-23
+> Стадия: Phase 1.2 (Reliability & Security)
 
 ---
 
@@ -59,7 +59,7 @@
    - Хэширует пароль через `bcrypt.hashpw()` с `bcrypt.gensalt()`
    - Сохраняет пользователя в БД с `role` и `is_verified=false`
    - Создаёт JWT с extra_claims: `{role, is_verified}`
-3. Возвращает `{access_token, token_type: "bearer"}`
+3. Возвращает `{access_token, refresh_token, token_type: "bearer"}`
 
 ---
 
@@ -70,7 +70,62 @@
    - Ищет пользователя по email (400 если не найден)
    - Проверяет пароль через `bcrypt.checkpw()`
    - Создаёт JWT с **текущими** значениями role и is_verified из БД
-3. Возвращает `{access_token, token_type: "bearer"}`
+   - Создаёт refresh token (UUID-based, SHA-256 хэш в БД)
+3. Возвращает `{access_token, refresh_token, token_type: "bearer"}`
+
+---
+
+## Refresh Token Flow
+
+```
+Client                    Identity Service               Database
+  │                            │                            │
+  │  POST /refresh             │                            │
+  │  {refresh_token}           │                            │
+  │───────────────────────────▶│                            │
+  │                            │  SHA-256(token)            │
+  │                            │  SELECT by hash            │
+  │                            │───────────────────────────▶│
+  │                            │◀───────────────────────────│
+  │                            │                            │
+  │                            │  Check: not revoked?       │
+  │                            │  Check: not expired?       │
+  │                            │                            │
+  │                            │  Revoke entire family      │
+  │                            │───────────────────────────▶│
+  │                            │                            │
+  │                            │  Create new refresh token  │
+  │                            │  (same family_id)          │
+  │                            │───────────────────────────▶│
+  │                            │                            │
+  │  {access_token,            │                            │
+  │   refresh_token}           │                            │
+  │◀───────────────────────────│                            │
+```
+
+### Token Rotation
+
+- Каждый refresh создаёт **новый** refresh token и инвалидирует **все** предыдущие в той же family
+- **Token reuse detection**: если revoked token используется повторно → вся family отзывается (compromised session)
+- Refresh token TTL: 30 дней (настраивается через `REFRESH_TOKEN_TTL_DAYS`)
+
+### Logout
+
+`POST /logout` с `{refresh_token}` → отзывает всю token family.
+
+### Таблица refresh_tokens
+
+```sql
+CREATE TABLE refresh_tokens (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token_hash VARCHAR(255) NOT NULL UNIQUE,
+    family_id UUID NOT NULL,
+    is_revoked BOOLEAN NOT NULL DEFAULT false,
+    expires_at TIMESTAMPTZ NOT NULL,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+```
 
 ---
 
@@ -167,12 +222,12 @@
 
 ---
 
-## Ограничения MVP
+## Ограничения
 
 | Ограничение | Причина | Когда появится |
 |-------------|---------|---------------|
-| Нет refresh token | YAGNI для MVP | Phase 1 |
-| Нет blacklist токенов | Нет Redis кэша | Phase 1 |
+| ~~Нет refresh token~~ | ~~YAGNI для MVP~~ | ✅ Phase 1.2 — refresh token rotation |
+| ~~Нет blacklist токенов~~ | ~~Нет Redis кэша~~ | ✅ Phase 1.2 — revoke family via DB |
 | Shared secret (HS256) | Простота, 5 сервисов | Phase 2 (RSA/JWKS при gateway) |
 | ~~Manual verification~~ | ~~Нет admin panel~~ | ✅ Admin panel реализован |
 | localStorage | Простота | Cookie httpOnly при production |

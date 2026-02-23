@@ -105,7 +105,7 @@ services:
       - ./services/py/identity/app:/app/app
       - ./services/py/identity/migrations:/app/migrations
       - ./libs/py/common/common:/libs/common/common
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8001 --reload --timeout-graceful-shutdown 10
     depends_on:
       identity-db:
         condition: service_healthy
@@ -124,7 +124,7 @@ services:
       - ./services/py/course/app:/app/app
       - ./services/py/course/migrations:/app/migrations
       - ./libs/py/common/common:/libs/common/common
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8002 --reload
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8002 --reload --timeout-graceful-shutdown 10
     depends_on:
       course-db:
         condition: service_healthy
@@ -143,7 +143,7 @@ services:
       - ./services/py/enrollment/app:/app/app
       - ./services/py/enrollment/migrations:/app/migrations
       - ./libs/py/common/common:/libs/common/common
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8003 --reload
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8003 --reload --timeout-graceful-shutdown 10
     depends_on:
       enrollment-db:
         condition: service_healthy
@@ -162,7 +162,7 @@ services:
       - ./services/py/payment/app:/app/app
       - ./services/py/payment/migrations:/app/migrations
       - ./libs/py/common/common:/libs/common/common
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8004 --reload
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8004 --reload --timeout-graceful-shutdown 10
     depends_on:
       payment-db:
         condition: service_healthy
@@ -181,7 +181,7 @@ services:
       - ./services/py/notification/app:/app/app
       - ./services/py/notification/migrations:/app/migrations
       - ./libs/py/common/common:/libs/common/common
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8005 --reload
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8005 --reload --timeout-graceful-shutdown 10
     depends_on:
       notification-db:
         condition: service_healthy

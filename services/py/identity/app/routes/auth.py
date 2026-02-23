@@ -2,9 +2,13 @@ from typing import Annotated
 from uuid import UUID
 
 import jwt
-from fastapi import APIRouter, Depends, Header
+from fastapi import APIRouter, Depends, Header, Request
+
+from fastapi.responses import Response
 
 from common.errors import AppError
+from common.rate_limit import RateLimiter
+from app.domain.token import RefreshRequest
 from app.domain.user import UserCreate, UserLogin, TokenPair, UserResponse
 from app.services.auth_service import AuthService
 
@@ -14,6 +18,24 @@ router = APIRouter(tags=["auth"])
 def _get_auth_service() -> AuthService:
     from app.main import get_auth_service
     return get_auth_service()
+
+
+async def _check_login_rate(request: Request) -> None:
+    from app.main import _redis
+    if _redis is not None:
+        ip = request.client.host if request.client else "unknown"
+        limiter = RateLimiter(_redis, limit=10, window_seconds=60)
+        if not await limiter.check(f"login:{ip}"):
+            raise AppError("Too many login attempts", status_code=429)
+
+
+async def _check_register_rate(request: Request) -> None:
+    from app.main import _redis
+    if _redis is not None:
+        ip = request.client.host if request.client else "unknown"
+        limiter = RateLimiter(_redis, limit=5, window_seconds=60)
+        if not await limiter.check(f"register:{ip}"):
+            raise AppError("Too many registration attempts", status_code=429)
 
 
 def _get_current_user_id(authorization: Annotated[str, Header()]) -> UUID:
@@ -31,7 +53,7 @@ def _get_current_user_id(authorization: Annotated[str, Header()]) -> UUID:
         raise AppError("Invalid token", status_code=401) from exc
 
 
-@router.post("/register", response_model=TokenPair)
+@router.post("/register", response_model=TokenPair, dependencies=[Depends(_check_register_rate)])
 async def register(
     body: UserCreate,
     service: Annotated[AuthService, Depends(_get_auth_service)],
@@ -39,7 +61,7 @@ async def register(
     return await service.register(body.email, body.password, body.name, body.role)
 
 
-@router.post("/login", response_model=TokenPair)
+@router.post("/login", response_model=TokenPair, dependencies=[Depends(_check_login_rate)])
 async def login(
     body: UserLogin,
     service: Annotated[AuthService, Depends(_get_auth_service)],
@@ -61,3 +83,20 @@ async def me(
         is_verified=user.is_verified,
         created_at=user.created_at,
     )
+
+
+@router.post("/refresh", response_model=TokenPair)
+async def refresh(
+    body: RefreshRequest,
+    service: Annotated[AuthService, Depends(_get_auth_service)],
+) -> TokenPair:
+    return await service.refresh(body.refresh_token)
+
+
+@router.post("/logout", status_code=204)
+async def logout(
+    body: RefreshRequest,
+    service: Annotated[AuthService, Depends(_get_auth_service)],
+) -> Response:
+    await service.logout(body.refresh_token)
+    return Response(status_code=204)

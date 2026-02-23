@@ -3,10 +3,14 @@ from collections.abc import AsyncIterator
 
 import asyncpg
 from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
 from prometheus_fastapi_instrumentator import Instrumentator
+from redis.asyncio import Redis
 
 from common.database import create_pool, update_pool_metrics
 from common.errors import register_error_handlers
+from common.health import create_health_router
+from common.rate_limit import RateLimitMiddleware
 from app.config import Settings
 from app.repositories.enrollment_repo import EnrollmentRepository
 from app.repositories.progress_repo import ProgressRepository
@@ -18,6 +22,7 @@ from app.routes.progress import router as progress_router
 app_settings = Settings()
 
 _pool: asyncpg.Pool | None = None
+_redis: Redis | None = None
 _enrollment_service: EnrollmentService | None = None
 _progress_service: ProgressService | None = None
 
@@ -34,7 +39,7 @@ def get_progress_service() -> ProgressService:
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
-    global _pool, _enrollment_service, _progress_service
+    global _pool, _redis, _enrollment_service, _progress_service
 
     _pool = await create_pool(
         app_settings.database_url,
@@ -50,18 +55,35 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         with open("migrations/003_indexes.sql") as f:
             await conn.execute(f.read())
 
+    _redis = Redis.from_url(app_settings.redis_url)
+
     enrollment_repo = EnrollmentRepository(_pool)
     progress_repo = ProgressRepository(_pool)
     _enrollment_service = EnrollmentService(enrollment_repo)
     _progress_service = ProgressService(progress_repo)
     yield
+    await _redis.aclose()
     await _pool.close()
 
 
 app = FastAPI(title="Enrollment Service", lifespan=lifespan)
 register_error_handlers(app)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=app_settings.allowed_origins.split(","),
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+app.add_middleware(
+    RateLimitMiddleware,
+    redis_getter=lambda: _redis,
+    limit=app_settings.rate_limit_per_minute,
+    window=60,
+)
 app.include_router(enrollments_router)
 app.include_router(progress_router)
+app.include_router(create_health_router(lambda: _pool, lambda: _redis))
 
 
 @app.middleware("http")
