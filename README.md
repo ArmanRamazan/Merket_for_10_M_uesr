@@ -16,22 +16,22 @@ Pet-проект: итеративное масштабирование учеб
 
 ## Текущий статус
 
-**Стадия:** Phase 1.2 (Reliability & Security) — 157 RPS, p99 51ms
+**Стадия:** Phase 1.3 (UX & Product Quality) — 157 RPS, p99 51ms
 
 | Компонент | Статус | Описание |
 |-----------|--------|----------|
-| Identity Service | ✅ Готов | Регистрация, логин, JWT refresh tokens, роли, admin endpoints |
-| Course Service | ✅ Готов | CRUD курсов, pg_trgm поиск, модули/уроки, отзывы, XSS sanitization |
-| Enrollment Service | ✅ Готов | Запись на курс, прогресс обучения, lesson completion |
+| Identity Service | ✅ Готов | Регистрация, логин, JWT refresh tokens, роли, admin, email verification, forgot password |
+| Course Service | ✅ Готов | CRUD курсов, pg_trgm поиск, модули/уроки, отзывы, категории, фильтрация, XSS sanitization |
+| Enrollment Service | ✅ Готов | Запись на курс, прогресс обучения, lesson completion, auto-completion |
 | Payment Service | ✅ Готов | Mock-оплата, GET /me, GET /:id |
 | Notification Service | ✅ Готов | In-app уведомления, mark as read |
-| Buyer Frontend | ✅ Готов | Next.js 15 — каталог, поиск, уроки, прогресс, admin panel |
+| Buyer Frontend | ✅ Готов | Next.js 15 — каталог, поиск, уроки, прогресс, admin, TanStack Query, error boundaries |
 | Shared Library | ✅ Готов | Config, errors, security, database, health checks, rate limiting |
 | Docker Compose | ✅ Готов | Dev (hot reload) + Prod (monitoring, graceful shutdown) |
 | Prometheus + Grafana | ✅ Готов | RPS, latency p50/p95/p99, error rate, pool metrics |
 | Seed Script | ✅ Готов | 50K users + 100K courses + 200K enrollments + 100K reviews |
 | Locust | ✅ Готов | 3 сценария: Student (70%), Search (20%), Teacher (10%) |
-| Unit Tests | ✅ 146 тестов | identity 48, course 51, enrollment 22, payment 13, notification 12 |
+| Unit Tests | ✅ 157 тестов | identity 48, course 59, enrollment 25, payment 13, notification 12 |
 
 ## Стек
 
@@ -39,7 +39,7 @@ Pet-проект: итеративное масштабирование учеб
 |------|-----------|--------|
 | Бизнес-логика | Python 3.12 / FastAPI | Быстрая разработка, Clean Architecture |
 | Performance-critical | Rust (будет) | API gateway, поиск, видео — когда Python упрётся в потолок |
-| Frontend | Next.js 15 / Tailwind CSS 4 | SSR/SSG, App Router |
+| Frontend | Next.js 15 / Tailwind CSS 4 | SSR/SSG, App Router, TanStack Query |
 | БД | PostgreSQL 16 | Каждый сервис — своя БД |
 | Кэш / Rate limit | Redis 7 | Course cache (TTL 5min), rate limiting (sliding window), все сервисы |
 | Метрики | Prometheus + Grafana | Автоматические метрики через prometheus-fastapi-instrumentator |
@@ -72,7 +72,7 @@ npm run dev    # http://localhost:3001
 # Установить зависимости (из корня)
 uv sync --all-packages
 
-# Все 5 сервисов (146 тестов)
+# Все 5 сервисов (157 тестов)
 cd services/py/identity && uv run --package identity pytest tests/ -v
 cd services/py/course && uv run --package course pytest tests/ -v
 cd services/py/enrollment && uv run --package enrollment pytest tests/ -v
@@ -116,9 +116,9 @@ docker compose -f docker-compose.prod.yml --profile loadtest up locust
 
 ```
 ├── libs/py/common/          — Shared: config, errors, security, database, health, rate limiting
-├── services/py/identity/    — Auth: register, login, JWT refresh tokens, roles, admin
-├── services/py/course/      — Courses: CRUD, search, modules, lessons, reviews, XSS sanitization
-├── services/py/enrollment/  — Enrollment: запись на курс, прогресс, lesson completion
+├── services/py/identity/    — Auth: register, login, JWT refresh tokens, roles, admin, email verification, forgot password
+├── services/py/course/      — Courses: CRUD, search, modules, lessons, reviews, categories, filtering, XSS sanitization
+├── services/py/enrollment/  — Enrollment: запись на курс, прогресс, lesson completion, auto-completion
 ├── services/py/payment/     — Payment: mock-оплата
 ├── services/py/notification/— Notifications: in-app, mark as read
 ├── apps/buyer/              — Next.js frontend
@@ -137,7 +137,7 @@ docker compose -f docker-compose.prod.yml --profile loadtest up locust
 | Стадия | Нагрузка | Ключевые изменения | Статус |
 |--------|----------|-------------------|--------|
 | **MVP** | 10K users | 5 Python сервисов, Next.js, Postgres, Locust | ✅ Готово |
-| **Оптимизация** | 10K → 100K | Индексы, Redis кэш, rate limiting, refresh tokens, health checks | 🟡 Phase 1.2 ✅ |
+| **Оптимизация** | 10K → 100K | Индексы, Redis кэш, rate limiting, refresh tokens, categories, email verification | 🟡 Phase 1.3 ✅ |
 | **Масштабирование** | 100K → 1M | Rust gateway, Meilisearch, NATS events, read replicas | 🔴 Не начато |
 | **Платформа** | 1M → 10M | Sharding, multi-region, video, live streaming | 🔴 Не начато |
 

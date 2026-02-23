@@ -1,7 +1,7 @@
 # 06 — Shared Library (common)
 
 > Последнее обновление: 2026-02-23
-> Стадия: Phase 1.2 (Reliability & Security)
+> Стадия: Phase 1.3 (UX & Product Quality)
 
 ---
 

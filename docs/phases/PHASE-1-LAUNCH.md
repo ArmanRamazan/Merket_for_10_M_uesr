@@ -50,67 +50,84 @@
 | 1.2.5 | Graceful shutdown (timeout-graceful-shutdown + stop_grace_period) | ✅ |
 | 1.2.6 | Health checks (/health/live + /health/ready) на всех 5 сервисах | ✅ |
 
-**Результат:** 146 тестов по 5 сервисам (identity 48, course 51, enrollment 22, payment 13, notification 12).
+**Результат:** 146 тестов по 5 сервисам.
 
 ---
 
-## Milestone 1.3 — Go-to-Market Ready
+## Milestone 1.3 — UX & Product Quality ✅ DONE
+
+> От «работает» к «приятно пользоваться». Категории, фильтрация, email verification, forgot password, auto-completion, TanStack Query, error boundaries.
 
 | # | Задача | Статус |
 |---|--------|--------|
-| 1.3.1 | SEO: SSR для каталога, meta tags, structured data (Course schema) | 🔴 |
-| 1.3.2 | Social sharing: Open Graph для курсов | 🔴 |
-| 1.3.3 | Mobile web: responsive, PWA | 🔴 |
-| 1.3.4 | Core Web Vitals: зелёная зона для всех страниц | 🔴 |
-| 1.3.5 | Teacher onboarding flow: guided wizard по созданию курса | 🔴 |
+| 1.3.1 | Error boundaries + loading states (skeletons, retry) | ✅ |
+| 1.3.2 | Email verification при регистрации (token hash, TTL 24h, stub) | ✅ |
+| 1.3.3 | Forgot password flow (token hash, TTL 1h, rate limit 3/hr) | ✅ |
+| 1.3.4 | Категории курсов + фильтрация (level, is_free) + сортировка (created_at, avg_rating, price) | ✅ |
+| 1.3.5 | Auto-completion курса при 100% уроков (total_lessons, status transition) | ✅ |
+| 1.3.6 | TanStack Query + optimistic updates (reviews, progress, notifications) | ✅ |
+
+**Результат:** 157 тестов по 5 сервисам (identity 48, course 59, enrollment 25, payment 13, notification 12).
 
 ---
 
-## Milestone 1.4 — Trust & Safety
+## Milestone 1.4 — Go-to-Market Ready
 
 | # | Задача | Статус |
 |---|--------|--------|
-| 1.4.1 | Teacher verification: загрузка документов, review queue | 🔴 |
-| 1.4.2 | Course moderation: базовая проверка контента | 🔴 |
-| 1.4.3 | Review moderation: фильтрация спама/оскорблений | 🔴 |
-| 1.4.4 | Reporting: жалобы на курсы/преподавателей | 🔴 |
+| 1.4.1 | SEO: SSR для каталога, meta tags, structured data (Course schema) | 🔴 |
+| 1.4.2 | Social sharing: Open Graph для курсов | 🔴 |
+| 1.4.3 | Mobile web: responsive, PWA | 🔴 |
+| 1.4.4 | Core Web Vitals: зелёная зона для всех страниц | 🔴 |
+| 1.4.5 | Teacher onboarding flow: guided wizard по созданию курса | 🔴 |
 
 ---
 
-## Milestone 1.5 — Engagement & Retention
+## Milestone 1.5 — Trust & Safety
 
 | # | Задача | Статус |
 |---|--------|--------|
-| 1.5.1 | Email уведомления: welcome, enrollment, lesson reminders | 🔴 |
-| 1.5.2 | Wishlist / favorites | 🔴 |
-| 1.5.3 | Категории курсов + фильтры в каталоге | 🔴 |
-| 1.5.4 | Сертификат по завершении курса (PDF) | 🔴 |
-| 1.5.5 | Password reset flow | 🔴 |
+| 1.5.1 | Teacher verification: загрузка документов, review queue | 🔴 |
+| 1.5.2 | Course moderation: базовая проверка контента | 🔴 |
+| 1.5.3 | Review moderation: фильтрация спама/оскорблений | 🔴 |
+| 1.5.4 | Reporting: жалобы на курсы/преподавателей | 🔴 |
 
 ---
 
-## Milestone 1.6 — Teacher Growth
+## Milestone 1.6 — Engagement & Retention
 
 | # | Задача | Статус |
 |---|--------|--------|
-| 1.6.1 | Seller App (Next.js): teacher dashboard | 🔴 |
-| 1.6.2 | Аналитика курсов: студенты, completion rate, revenue | 🔴 |
-| 1.6.3 | Stripe/YooKassa интеграция (реальные платежи) | 🔴 |
-| 1.6.4 | Payout: вывод средств для преподавателей | 🔴 |
-| 1.6.5 | Промо v1: купоны, скидки | 🔴 |
+| 1.6.1 | Email уведомления: welcome, enrollment, lesson reminders | 🔴 |
+| 1.6.2 | Wishlist / favorites | 🔴 |
+| 1.6.3 | ~~Категории курсов + фильтры в каталоге~~ | ✅ (Phase 1.3) |
+| 1.6.4 | Сертификат по завершении курса (PDF) | 🔴 |
+| 1.6.5 | ~~Password reset flow~~ | ✅ (Phase 1.3) |
 
 ---
 
-## Milestone 1.7 — Infrastructure Hardening
+## Milestone 1.7 — Teacher Growth
 
 | # | Задача | Статус |
 |---|--------|--------|
-| 1.7.1 | CI/CD: GitHub Actions (lint → test → build → deploy) | 🔴 |
-| 1.7.2 | Staging environment | 🔴 |
-| 1.7.3 | Database backups + restore procedure | 🔴 |
-| 1.7.4 | Structured logging (JSON) | 🔴 |
-| 1.7.5 | Load test: 1K concurrent users | 🔴 |
-| 1.7.6 | Incident response: on-call, runbooks | 🔴 |
+| 1.7.1 | Seller App (Next.js): teacher dashboard | 🔴 |
+| 1.7.2 | Аналитика курсов: студенты, completion rate, revenue | 🔴 |
+| 1.7.3 | Stripe/YooKassa интеграция (реальные платежи) | 🔴 |
+| 1.7.4 | Payout: вывод средств для преподавателей | 🔴 |
+| 1.7.5 | Промо v1: купоны, скидки | 🔴 |
+
+---
+
+## Milestone 1.8 — Infrastructure Hardening
+
+| # | Задача | Статус |
+|---|--------|--------|
+| 1.8.1 | CI/CD: GitHub Actions (lint → test → build → deploy) | 🔴 |
+| 1.8.2 | Staging environment | 🔴 |
+| 1.8.3 | Database backups + restore procedure | 🔴 |
+| 1.8.4 | Structured logging (JSON) | 🔴 |
+| 1.8.5 | Load test: 1K concurrent users | 🔴 |
+| 1.8.6 | Incident response: on-call, runbooks | 🔴 |
 
 ---
 

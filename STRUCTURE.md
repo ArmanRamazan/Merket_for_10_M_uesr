@@ -25,9 +25,9 @@ eduplatform/
 │
 ├── services/                      # Deployable сервисы
 │   ├── py/                        # Python сервисы (бизнес-логика)
-│   │   ├── identity/              #   Auth, JWT refresh tokens, roles, admin endpoints
-│   │   ├── course/                #   CRUD курсов, поиск, модули, уроки, отзывы, XSS sanitization
-│   │   ├── enrollment/            #   Запись на курс, прогресс, lesson completion
+│   │   ├── identity/              #   Auth, JWT refresh tokens, roles, admin, email verification, forgot password
+│   │   ├── course/                #   CRUD курсов, поиск, модули, уроки, отзывы, категории, фильтрация, XSS sanitization
+│   │   ├── enrollment/            #   Запись на курс, прогресс, lesson completion, auto-completion
 │   │   ├── payment/               #   Mock-оплата
 │   │   └── notification/          #   In-app уведомления
 │   └── rs/                        # Rust сервисы (performance-critical)
@@ -84,7 +84,7 @@ eduplatform/
 | `workers/` директория | Когда вырастет | Пока background jobs живут внутри сервисов. Выделим когда нужна независимая масштабируемость |
 | `libs/py/testing/` | Когда будет boilerplate | Пока fixtures живут в `tests/` каждого сервиса. Выделим когда увидим дублирование |
 | `terraform/` | Phase 2 | Пока Docker Compose хватает. IaC когда будет multi-env |
-| `apps/seller/` | Phase 1.6 | Teacher dashboard как отдельное приложение |
+| `apps/seller/` | Phase 1.7 | Teacher dashboard как отдельное приложение |
 
 ---
 
@@ -158,8 +158,17 @@ apps/{app}/
 │   ├── layout.tsx         #   Root layout
 │   └── globals.css        #   Tailwind directives
 ├── components/            #   Компоненты специфичные для этого app
-│   └──                    #     Используют packages/ui как основу
-├── hooks/                 #   Custom React hooks
+│   ├── Header.tsx         #     Навигация, auth state, email verification banner
+│   ├── Providers.tsx      #     QueryClientProvider (TanStack Query)
+│   ├── CourseCardSkeleton.tsx  #  Loading skeleton для курсов
+│   └── ...                #     Используют packages/ui как основу
+├── hooks/                 #   Custom React hooks (TanStack Query)
+│   ├── use-auth.ts        #     Login/register/logout (не server state)
+│   ├── use-courses.ts     #     useCourseList, useCourse, useCurriculum, useCategories
+│   ├── use-enrollments.ts #     useMyEnrollments, useEnroll (mutation)
+│   ├── use-reviews.ts     #     useCourseReviews, useCreateReview (optimistic)
+│   ├── use-progress.ts    #     useCourseProgress, useCompleteLesson (optimistic)
+│   └── use-notifications.ts #   useMyNotifications, useMarkRead (optimistic)
 ├── lib/                   #   API вызовы, утилиты, конфиг
 ├── public/                #   Статика (favicon, robots.txt)
 ├── next.config.ts
