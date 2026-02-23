@@ -45,6 +45,7 @@ def sample_enrollment(enrollment_id, student_id, course_id):
         payment_id=None,
         status=EnrollmentStatus.ENROLLED,
         enrolled_at=datetime.now(timezone.utc),
+        total_lessons=5,
     )
 
 
@@ -75,5 +76,5 @@ def enrollment_service(mock_repo):
 
 
 @pytest.fixture
-def progress_service(mock_progress_repo):
-    return ProgressService(repo=mock_progress_repo)
+def progress_service(mock_progress_repo, mock_repo):
+    return ProgressService(repo=mock_progress_repo, enrollment_repo=mock_repo)

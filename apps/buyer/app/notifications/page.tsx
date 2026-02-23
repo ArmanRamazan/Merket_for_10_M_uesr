@@ -1,10 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import Link from "next/link";
-import { notifications, type Notification } from "@/lib/api";
 import { Header } from "@/components/Header";
 import { useAuth } from "@/hooks/use-auth";
+import { useMyNotifications, useMarkRead } from "@/hooks/use-notifications";
 
 const TYPE_LABELS: Record<string, string> = {
   registration: "Регистрация",
@@ -14,30 +13,8 @@ const TYPE_LABELS: Record<string, string> = {
 
 export default function NotificationsPage() {
   const { token, user, loading } = useAuth();
-  const [items, setItems] = useState<Notification[]>([]);
-  const [total, setTotal] = useState(0);
-  const [fetching, setFetching] = useState(true);
-
-  useEffect(() => {
-    if (!token) {
-      setFetching(false);
-      return;
-    }
-    notifications
-      .me(token, { limit: 50 })
-      .then((r) => {
-        setItems(r.items);
-        setTotal(r.total);
-      })
-      .catch(() => {})
-      .finally(() => setFetching(false));
-  }, [token]);
-
-  async function handleMarkRead(id: string) {
-    if (!token) return;
-    const updated = await notifications.markRead(token, id);
-    setItems((prev) => prev.map((n) => (n.id === id ? updated : n)));
-  }
+  const { data, isLoading } = useMyNotifications(token, { limit: 50 });
+  const markRead = useMarkRead(token);
 
   return (
     <>
@@ -45,7 +22,7 @@ export default function NotificationsPage() {
       <main className="mx-auto max-w-4xl px-4 py-6">
         <h1 className="mb-4 text-2xl font-bold">Уведомления</h1>
 
-        {loading || fetching ? (
+        {loading || isLoading ? (
           <p className="text-gray-400">Загрузка...</p>
         ) : !user ? (
           <p className="text-gray-500">
@@ -54,13 +31,13 @@ export default function NotificationsPage() {
             </Link>{" "}
             чтобы увидеть уведомления.
           </p>
-        ) : items.length === 0 ? (
+        ) : !data || data.items.length === 0 ? (
           <p className="text-gray-500">Уведомлений пока нет.</p>
         ) : (
           <>
-            <p className="mb-4 text-sm text-gray-400">Всего: {total}</p>
+            <p className="mb-4 text-sm text-gray-400">Всего: {data.total}</p>
             <div className="space-y-3">
-              {items.map((n) => (
+              {data.items.map((n) => (
                 <div
                   key={n.id}
                   className={`rounded-lg border p-4 ${
@@ -78,7 +55,7 @@ export default function NotificationsPage() {
                     </div>
                     {!n.is_read && (
                       <button
-                        onClick={() => handleMarkRead(n.id)}
+                        onClick={() => markRead.mutate(n.id)}
                         className="text-xs text-blue-600 hover:underline"
                       >
                         Прочитано

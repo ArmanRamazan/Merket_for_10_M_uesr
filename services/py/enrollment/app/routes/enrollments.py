@@ -48,6 +48,7 @@ def _to_response(e: "Enrollment") -> EnrollmentResponse:
         payment_id=e.payment_id,
         status=e.status,
         enrolled_at=e.enrolled_at,
+        total_lessons=e.total_lessons,
     )
 
 
@@ -62,6 +63,7 @@ async def create_enrollment(
         role=claims["role"],
         course_id=body.course_id,
         payment_id=body.payment_id,
+        total_lessons=body.total_lessons,
     )
     return _to_response(enrollment)
 

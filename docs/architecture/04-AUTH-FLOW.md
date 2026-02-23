@@ -1,7 +1,7 @@
 # 04 — Authentication Flow
 
 > Последнее обновление: 2026-02-23
-> Стадия: Phase 1.2 (Reliability & Security)
+> Стадия: Phase 1.3 (UX & Product Quality)
 
 ---
 
@@ -190,7 +190,8 @@ CREATE TABLE refresh_tokens (
 | `iat` | `datetime.now(UTC)` | Время выпуска токена |
 | `exp` | `iat + 3600s` | Время истечения |
 | `role` | `user.role` | `"student"`, `"teacher"` или `"admin"` |
-| `is_verified` | `user.is_verified` | Статус верификации |
+| `is_verified` | `user.is_verified` | Статус верификации преподавателя |
+| `email_verified` | `user.email_verified` | Подтверждён ли email |
 
 ---
 
@@ -209,6 +210,31 @@ CREATE TABLE refresh_tokens (
 - `PATCH /admin/users/{user_id}/verify` — верифицировать teacher (admin only)
 
 **Seed admin:** `admin@eduplatform.com` / `password123` (создаётся в seed скрипте)
+
+---
+
+## Email Verification Flow
+
+1. При регистрации Identity Service создаёт `email_verification_token` (raw token → SHA-256 hash в БД, TTL 24h)
+2. Raw token логируется `[EMAIL_VERIFY] url=.../verify-email?token=...` (stub, без реальной отправки)
+3. Пользователь переходит по ссылке → `POST /verify-email {token}`
+4. Identity Service: SHA-256(token) → найти в БД → проверить expiry/used → mark used → set `email_verified=true`
+5. Новый JWT включает `email_verified: true`
+
+**Resend:** `POST /resend-verification` (authenticated) → удаляет старые токены, создаёт новый.
+
+**Frontend:** баннер "Подтвердите email" в Header, если `email_verified === false`.
+
+---
+
+## Forgot Password Flow
+
+1. Пользователь отправляет `POST /forgot-password {email}`
+2. Identity Service **всегда** возвращает 204 (не раскрывает существование email)
+3. Если email существует: проверяет rate limit (3/hour per user), создаёт `password_reset_token` (TTL 1h), логирует `[PASSWORD_RESET]`
+4. Пользователь переходит по ссылке → `POST /reset-password {token, new_password}`
+5. Identity Service: validate token → update password (bcrypt) → revoke all refresh tokens
+6. Пользователь перелогинивается с новым паролем
 
 ---
 
@@ -231,3 +257,4 @@ CREATE TABLE refresh_tokens (
 | Shared secret (HS256) | Простота, 5 сервисов | Phase 2 (RSA/JWKS при gateway) |
 | ~~Manual verification~~ | ~~Нет admin panel~~ | ✅ Admin panel реализован |
 | localStorage | Простота | Cookie httpOnly при production |
+| Email stub (логирование) | Нет SMTP | Phase 2 (реальная отправка через email service) |

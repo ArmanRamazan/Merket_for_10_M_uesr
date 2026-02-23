@@ -1,16 +1,13 @@
 "use client";
 
-import { useState, useEffect, use } from "react";
+import { useState, use } from "react";
 import Link from "next/link";
-import {
-  courses,
-  lessons as lessonsApi,
-  progress as progressApi,
-  type Lesson,
-  type CurriculumModule,
-} from "@/lib/api";
+import { useQuery } from "@tanstack/react-query";
+import { lessons as lessonsApi } from "@/lib/api";
 import { Header } from "@/components/Header";
 import { useAuth } from "@/hooks/use-auth";
+import { useCurriculum } from "@/hooks/use-courses";
+import { useCompletedLessons, useCompleteLesson } from "@/hooks/use-progress";
 
 export default function LessonPage({
   params,
@@ -19,53 +16,27 @@ export default function LessonPage({
 }) {
   const { id: courseId, lessonId } = use(params);
   const { token } = useAuth();
-  const [lesson, setLesson] = useState<Lesson | null>(null);
-  const [curriculum, setCurriculum] = useState<CurriculumModule[]>([]);
-  const [completedIds, setCompletedIds] = useState<Set<string>>(new Set());
-  const [completing, setCompleting] = useState(false);
-  const [completed, setCompleted] = useState(false);
-  const [error, setError] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [courseTitle, setCourseTitle] = useState("");
 
-  // Flat list of all lesson IDs for prev/next
+  const { data: lesson, error } = useQuery({
+    queryKey: ["lessons", lessonId],
+    queryFn: () => lessonsApi.get(lessonId),
+  });
+
+  const { data: curriculumData } = useCurriculum(courseId);
+  const curriculum = curriculumData?.modules ?? [];
+  const courseTitle = curriculumData?.course.title ?? "...";
+
+  const { data: completedData } = useCompletedLessons(token, courseId);
+  const completedIds = new Set(completedData?.completed_lesson_ids ?? []);
+  const completed = completedIds.has(lessonId);
+
+  const completeLesson = useCompleteLesson(token, courseId);
+
   const allLessons = curriculum.flatMap((m) => m.lessons);
   const currentIdx = allLessons.findIndex((l) => l.id === lessonId);
   const prevLesson = currentIdx > 0 ? allLessons[currentIdx - 1] : null;
   const nextLesson = currentIdx < allLessons.length - 1 ? allLessons[currentIdx + 1] : null;
-
-  useEffect(() => {
-    lessonsApi.get(lessonId).then(setLesson).catch((e) => setError(e.message));
-    courses.curriculum(courseId).then((r) => {
-      setCurriculum(r.modules);
-      setCourseTitle(r.course.title);
-    }).catch(() => {});
-    setSidebarOpen(false);
-  }, [courseId, lessonId]);
-
-  useEffect(() => {
-    if (!token) return;
-    progressApi.completedLessons(token, courseId).then((r) => {
-      const ids = new Set(r.completed_lesson_ids);
-      setCompletedIds(ids);
-      setCompleted(ids.has(lessonId));
-    }).catch(() => {});
-  }, [token, courseId, lessonId]);
-
-  async function handleComplete() {
-    if (!token) return;
-    setCompleting(true);
-    try {
-      await progressApi.complete(token, lessonId, courseId);
-      setCompleted(true);
-      setCompletedIds((prev) => new Set([...prev, lessonId]));
-    } catch {
-      // already completed — ignore
-      setCompleted(true);
-    } finally {
-      setCompleting(false);
-    }
-  }
 
   return (
     <>
@@ -76,7 +47,7 @@ export default function LessonPage({
           <Link href="/" className="hover:underline">Курсы</Link>
           {" / "}
           <Link href={`/courses/${courseId}`} className="hover:underline">
-            {courseTitle || "..."}
+            {courseTitle}
           </Link>
           {lesson && (
             <>
@@ -133,7 +104,9 @@ export default function LessonPage({
         {/* Main content */}
         <main className="min-w-0 flex-1">
           {error ? (
-            <div className="rounded bg-red-50 p-4 text-red-600">{error}</div>
+            <div className="rounded bg-red-50 p-4 text-red-600">
+              {error instanceof Error ? error.message : "Ошибка"}
+            </div>
           ) : !lesson ? (
             <p className="text-gray-400">Загрузка...</p>
           ) : (
@@ -161,11 +134,11 @@ export default function LessonPage({
                   </span>
                 ) : token ? (
                   <button
-                    onClick={handleComplete}
-                    disabled={completing}
+                    onClick={() => completeLesson.mutate(lessonId)}
+                    disabled={completeLesson.isPending}
                     className="rounded bg-green-600 px-3 py-1.5 text-sm text-white hover:bg-green-700 disabled:opacity-50"
                   >
-                    {completing ? "Завершаем..." : "Завершить урок"}
+                    {completeLesson.isPending ? "Завершаем..." : "Завершить урок"}
                   </button>
                 ) : null}
 

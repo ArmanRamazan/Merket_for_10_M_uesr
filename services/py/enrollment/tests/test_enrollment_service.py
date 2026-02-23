@@ -28,7 +28,7 @@ async def test_enroll_success(
 
     assert result.id == sample_enrollment.id
     assert result.student_id == student_id
-    mock_repo.create.assert_called_once_with(student_id, course_id, None)
+    mock_repo.create.assert_called_once_with(student_id, course_id, None, 0)
 
 
 @pytest.mark.asyncio
@@ -49,7 +49,7 @@ async def test_enroll_with_payment(
         payment_id=payment_id,
     )
 
-    mock_repo.create.assert_called_once_with(student_id, course_id, payment_id)
+    mock_repo.create.assert_called_once_with(student_id, course_id, payment_id, 0)
 
 
 @pytest.mark.asyncio

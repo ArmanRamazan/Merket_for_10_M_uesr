@@ -1,7 +1,7 @@
 # 02 — API Reference
 
 > Последнее обновление: 2026-02-23
-> Стадия: Phase 1.2 (Reliability & Security)
+> Стадия: Phase 1.3 (UX & Product Quality)
 
 ---
 
@@ -83,6 +83,7 @@
   "name": "Ivan Petrov",
   "role": "student",
   "is_verified": false,
+  "email_verified": false,
   "created_at": "2026-02-20T12:00:00+00:00"
 }
 ```
@@ -135,6 +136,78 @@
 ```
 
 **Response `204`:** No content.
+
+---
+
+### POST /verify-email
+
+Подтверждение email по токену из ссылки. Публичный endpoint.
+
+**Request:**
+```json
+{
+  "token": "raw-verification-token"
+}
+```
+
+**Response `200`:** Объект `UserResponse`.
+
+**Errors:**
+| Code | Причина |
+|------|---------|
+| 400 | Невалидный, просроченный или уже использованный токен |
+
+---
+
+### POST /resend-verification
+
+Повторная отправка email-верификации. Требует JWT.
+
+**Headers:** `Authorization: Bearer <token>`
+
+**Response `204`:** No content.
+
+**Errors:**
+| Code | Причина |
+|------|---------|
+| 400 | Email уже подтверждён |
+| 401 | Отсутствует или невалидный токен |
+
+---
+
+### POST /forgot-password
+
+Запрос сброса пароля. Всегда возвращает 204 (не раскрывает существование email). Rate limit: 3/hour per user.
+
+**Request:**
+```json
+{
+  "email": "user@example.com"
+}
+```
+
+**Response `204`:** No content (всегда).
+
+---
+
+### POST /reset-password
+
+Установка нового пароля по токену сброса.
+
+**Request:**
+```json
+{
+  "token": "raw-reset-token",
+  "new_password": "newsecret123"
+}
+```
+
+**Response `204`:** No content.
+
+**Errors:**
+| Code | Причина |
+|------|---------|
+| 400 | Невалидный, просроченный или уже использованный токен |
 
 ---
 
@@ -220,14 +293,32 @@ Readiness probe. Проверяет PostgreSQL и Redis (если есть).
 
 ## Course Service (`:8002`)
 
+### GET /categories
+
+Список всех категорий курсов. Публичный endpoint.
+
+**Response `200`:**
+```json
+[
+  {"id": "...", "name": "Programming", "slug": "programming"},
+  {"id": "...", "name": "Design", "slug": "design"}
+]
+```
+
+---
+
 ### GET /courses
 
-Список курсов с пагинацией и поиском. Публичный endpoint, не требует авторизации.
+Список курсов с пагинацией, фильтрацией и поиском. Публичный endpoint, не требует авторизации.
 
 **Query params:**
 | Параметр | Тип | Default | Описание |
 |----------|-----|---------|----------|
 | `q` | string | — | Поиск по title/description (ILIKE) |
+| `category_id` | UUID | — | Фильтр по категории |
+| `level` | string | — | Фильтр по уровню (beginner/intermediate/advanced) |
+| `is_free` | bool | — | Фильтр по стоимости |
+| `sort_by` | string | created_at | Сортировка: created_at, avg_rating, price |
 | `limit` | int (1-100) | 20 | Количество записей |
 | `offset` | int (≥0) | 0 | Смещение |
 
@@ -246,6 +337,7 @@ Readiness probe. Проверяет PostgreSQL и Redis (если есть).
       "level": "beginner",
       "avg_rating": 4.35,
       "review_count": 12,
+      "category_id": "550e8400-e29b-41d4-a716-446655440001",
       "created_at": "2026-02-20T12:00:00+00:00"
     }
   ],
@@ -282,7 +374,8 @@ Readiness probe. Проверяет PostgreSQL и Redis (если есть).
   "is_free": true,
   "price": null,
   "duration_minutes": 120,
-  "level": "beginner"
+  "level": "beginner",
+  "category_id": "550e8400-e29b-41d4-a716-446655440001"
 }
 ```
 
@@ -523,7 +616,8 @@ Readiness probe. Проверяет PostgreSQL и Redis (если есть).
 ```json
 {
   "course_id": "550e8400-e29b-41d4-a716-446655440000",
-  "payment_id": "660e8400-e29b-41d4-a716-446655440000"  // optional, для платных курсов
+  "payment_id": "660e8400-e29b-41d4-a716-446655440000",  // optional, для платных курсов
+  "total_lessons": 15                                     // optional, для auto-completion
 }
 ```
 
@@ -535,6 +629,7 @@ Readiness probe. Проверяет PostgreSQL и Redis (если есть).
   "course_id": "...",
   "payment_id": null,
   "status": "enrolled",
+  "total_lessons": 15,
   "enrolled_at": "2026-02-20T12:00:00+00:00"
 }
 ```
@@ -798,7 +893,8 @@ Mock оплата курса. Всегда возвращает `status=complete
   "iat": 1740000000,
   "exp": 1740003600,
   "role": "teacher",
-  "is_verified": true
+  "is_verified": true,
+  "email_verified": true
 }
 ```
 
@@ -809,6 +905,7 @@ Mock оплата курса. Всегда возвращает `status=complete
 | `exp` | int | Expiration (iat + 3600 сек) |
 | `role` | string | `"student"`, `"teacher"` или `"admin"` |
 | `is_verified` | bool | Верифицирован ли преподаватель |
+| `email_verified` | bool | Подтверждён ли email |
 
 - Алгоритм: **HS256**
 - Shared secret: `JWT_SECRET` env var (одинаковый для всех сервисов)

@@ -1,30 +1,27 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { courses, type Course } from "@/lib/api";
+import { useState } from "react";
 import { Header } from "@/components/Header";
 import { CourseCard } from "@/components/CourseCard";
+import { useCourseList, useCategories } from "@/hooks/use-courses";
 
 export default function HomePage() {
-  const [items, setItems] = useState<Course[]>([]);
-  const [total, setTotal] = useState(0);
   const [query, setQuery] = useState("");
   const [search, setSearch] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
+  const [categoryId, setCategoryId] = useState("");
+  const [level, setLevel] = useState("");
+  const [isFree, setIsFree] = useState<string>("");
+  const [sortBy, setSortBy] = useState("created_at");
 
-  useEffect(() => {
-    setLoading(true);
-    setError("");
-    courses
-      .list({ q: search || undefined, limit: 20 })
-      .then((res) => {
-        setItems(res.items);
-        setTotal(res.total);
-      })
-      .catch((e) => setError(e.message))
-      .finally(() => setLoading(false));
-  }, [search]);
+  const { data: categoryList = [] } = useCategories();
+  const { data, isLoading, error } = useCourseList({
+    q: search || undefined,
+    category_id: categoryId || undefined,
+    level: level || undefined,
+    is_free: isFree === "" ? undefined : isFree === "true",
+    sort_by: sortBy,
+    limit: 20,
+  });
 
   function handleSearch(e: React.FormEvent) {
     e.preventDefault();
@@ -35,7 +32,7 @@ export default function HomePage() {
     <>
       <Header />
       <main className="mx-auto max-w-6xl px-4 py-6">
-        <form onSubmit={handleSearch} className="mb-6 flex gap-2">
+        <form onSubmit={handleSearch} className="mb-4 flex gap-2">
           <input
             type="text"
             value={query}
@@ -51,23 +48,65 @@ export default function HomePage() {
           </button>
         </form>
 
-        {error && (
-          <div className="mb-4 rounded bg-red-50 p-3 text-sm text-red-600">
-            {error}
-          </div>
-        )}
+        <div className="mb-6 flex flex-wrap items-center gap-3">
+          <select
+            value={categoryId}
+            onChange={(e) => setCategoryId(e.target.value)}
+            className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+          >
+            <option value="">Все категории</option>
+            {categoryList.map((c) => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </select>
 
-        {loading ? (
+          <select
+            value={level}
+            onChange={(e) => setLevel(e.target.value)}
+            className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+          >
+            <option value="">Все уровни</option>
+            <option value="beginner">Начальный</option>
+            <option value="intermediate">Средний</option>
+            <option value="advanced">Продвинутый</option>
+          </select>
+
+          <select
+            value={isFree}
+            onChange={(e) => setIsFree(e.target.value)}
+            className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+          >
+            <option value="">Все курсы</option>
+            <option value="true">Бесплатные</option>
+            <option value="false">Платные</option>
+          </select>
+
+          <select
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value)}
+            className="rounded-lg border border-gray-300 px-3 py-2 text-sm focus:border-blue-500 focus:outline-none"
+          >
+            <option value="created_at">Новые</option>
+            <option value="avg_rating">По рейтингу</option>
+            <option value="price">По цене</option>
+          </select>
+        </div>
+
+        {error ? (
+          <div className="mb-4 rounded bg-red-50 p-3 text-sm text-red-600">
+            {error instanceof Error ? error.message : "Ошибка загрузки"}
+          </div>
+        ) : isLoading ? (
           <p className="text-center text-gray-400">Загрузка...</p>
-        ) : items.length === 0 ? (
+        ) : !data || data.items.length === 0 ? (
           <p className="text-center text-gray-400">Курсы не найдены</p>
         ) : (
           <>
             <p className="mb-4 text-sm text-gray-500">
-              Найдено: {total}
+              Найдено: {data.total}
             </p>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {items.map((c) => (
+              {data.items.map((c) => (
                 <CourseCard key={c.id} course={c} />
               ))}
             </div>

@@ -22,11 +22,13 @@ class Enrollment:
     payment_id: UUID | None
     status: EnrollmentStatus
     enrolled_at: datetime
+    total_lessons: int = 0
 
 
 class EnrollmentCreate(BaseModel):
     course_id: UUID
     payment_id: UUID | None = None
+    total_lessons: int = 0
 
 
 class EnrollmentResponse(BaseModel):
@@ -36,6 +38,7 @@ class EnrollmentResponse(BaseModel):
     payment_id: UUID | None
     status: EnrollmentStatus
     enrolled_at: datetime
+    total_lessons: int = 0
 
 
 class EnrollmentListResponse(BaseModel):

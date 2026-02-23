@@ -1,10 +1,9 @@
 "use client";
 
-import { useState, useEffect } from "react";
 import Link from "next/link";
-import { enrollments, type Enrollment } from "@/lib/api";
 import { Header } from "@/components/Header";
 import { useAuth } from "@/hooks/use-auth";
+import { useMyEnrollments } from "@/hooks/use-enrollments";
 
 const STATUS_LABELS: Record<string, string> = {
   enrolled: "Записан",
@@ -14,24 +13,7 @@ const STATUS_LABELS: Record<string, string> = {
 
 export default function EnrollmentsPage() {
   const { token, user, loading } = useAuth();
-  const [items, setItems] = useState<Enrollment[]>([]);
-  const [total, setTotal] = useState(0);
-  const [fetching, setFetching] = useState(true);
-
-  useEffect(() => {
-    if (!token) {
-      setFetching(false);
-      return;
-    }
-    enrollments
-      .me(token, { limit: 50 })
-      .then((r) => {
-        setItems(r.items);
-        setTotal(r.total);
-      })
-      .catch(() => {})
-      .finally(() => setFetching(false));
-  }, [token]);
+  const { data, isLoading } = useMyEnrollments(token, { limit: 50 });
 
   return (
     <>
@@ -39,7 +21,7 @@ export default function EnrollmentsPage() {
       <main className="mx-auto max-w-4xl px-4 py-6">
         <h1 className="mb-4 text-2xl font-bold">Мои курсы</h1>
 
-        {loading || fetching ? (
+        {loading || isLoading ? (
           <p className="text-gray-400">Загрузка...</p>
         ) : !user ? (
           <p className="text-gray-500">
@@ -48,7 +30,7 @@ export default function EnrollmentsPage() {
             </Link>{" "}
             чтобы увидеть свои курсы.
           </p>
-        ) : items.length === 0 ? (
+        ) : !data || data.items.length === 0 ? (
           <p className="text-gray-500">
             Вы ещё не записаны ни на один курс.{" "}
             <Link href="/" className="text-blue-600 hover:underline">
@@ -57,9 +39,9 @@ export default function EnrollmentsPage() {
           </p>
         ) : (
           <>
-            <p className="mb-4 text-sm text-gray-400">Всего: {total}</p>
+            <p className="mb-4 text-sm text-gray-400">Всего: {data.total}</p>
             <div className="space-y-3">
-              {items.map((e) => (
+              {data.items.map((e) => (
                 <Link
                   key={e.id}
                   href={`/courses/${e.course_id}`}

@@ -6,6 +6,8 @@ import asyncpg
 
 from app.domain.enrollment import Enrollment, EnrollmentStatus
 
+_COLUMNS = "id, student_id, course_id, payment_id, status, enrolled_at, total_lessons"
+
 
 class EnrollmentRepository:
     def __init__(self, pool: asyncpg.Pool) -> None:
@@ -16,16 +18,18 @@ class EnrollmentRepository:
         student_id: UUID,
         course_id: UUID,
         payment_id: UUID | None,
+        total_lessons: int = 0,
     ) -> Enrollment:
         row = await self._pool.fetchrow(
-            """
-            INSERT INTO enrollments (student_id, course_id, payment_id)
-            VALUES ($1, $2, $3)
-            RETURNING id, student_id, course_id, payment_id, status, enrolled_at
+            f"""
+            INSERT INTO enrollments (student_id, course_id, payment_id, total_lessons)
+            VALUES ($1, $2, $3, $4)
+            RETURNING {_COLUMNS}
             """,
             student_id,
             course_id,
             payment_id,
+            total_lessons,
         )
         return self._to_entity(row)
 
@@ -33,10 +37,7 @@ class EnrollmentRepository:
         self, student_id: UUID, course_id: UUID
     ) -> Enrollment | None:
         row = await self._pool.fetchrow(
-            """
-            SELECT id, student_id, course_id, payment_id, status, enrolled_at
-            FROM enrollments WHERE student_id = $1 AND course_id = $2
-            """,
+            f"SELECT {_COLUMNS} FROM enrollments WHERE student_id = $1 AND course_id = $2",
             student_id,
             course_id,
         )
@@ -47,8 +48,8 @@ class EnrollmentRepository:
     ) -> tuple[list[Enrollment], int]:
         async with self._pool.acquire() as conn:
             rows = await conn.fetch(
-                """
-                SELECT id, student_id, course_id, payment_id, status, enrolled_at
+                f"""
+                SELECT {_COLUMNS}
                 FROM enrollments WHERE student_id = $1
                 ORDER BY enrolled_at DESC LIMIT $2 OFFSET $3
                 """,
@@ -69,6 +70,13 @@ class EnrollmentRepository:
         )
         return count
 
+    async def update_status(self, enrollment_id: UUID, status: EnrollmentStatus) -> None:
+        await self._pool.execute(
+            "UPDATE enrollments SET status = $1 WHERE id = $2",
+            status,
+            enrollment_id,
+        )
+
     @staticmethod
     def _to_entity(row: asyncpg.Record) -> Enrollment:
         return Enrollment(
@@ -78,4 +86,5 @@ class EnrollmentRepository:
             payment_id=row["payment_id"],
             status=EnrollmentStatus(row["status"]),
             enrolled_at=row["enrolled_at"],
+            total_lessons=row["total_lessons"],
         )

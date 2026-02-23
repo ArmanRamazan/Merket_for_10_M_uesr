@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import logging
 import secrets
 from datetime import datetime, timedelta, timezone
 from uuid import UUID, uuid4
@@ -12,6 +13,10 @@ from common.security import create_access_token
 from app.domain.user import User, UserRole, TokenPair
 from app.repositories.user_repo import UserRepository
 from app.repositories.token_repo import TokenRepository
+from app.repositories.verification_repo import VerificationRepository
+from app.repositories.password_reset_repo import PasswordResetRepository
+
+logger = logging.getLogger(__name__)
 
 
 def _hash_password(password: str) -> str:
@@ -35,6 +40,8 @@ class AuthService:
         jwt_ttl_seconds: int,
         token_repo: TokenRepository | None = None,
         refresh_token_ttl_days: int = 30,
+        verification_repo: VerificationRepository | None = None,
+        password_reset_repo: PasswordResetRepository | None = None,
     ) -> None:
         self._repo = repo
         self._jwt_secret = jwt_secret
@@ -42,6 +49,8 @@ class AuthService:
         self._jwt_ttl_seconds = jwt_ttl_seconds
         self._token_repo = token_repo
         self._refresh_ttl_days = refresh_token_ttl_days
+        self._verification_repo = verification_repo
+        self._password_reset_repo = password_reset_repo
 
     def _create_token(self, user: User) -> str:
         return create_access_token(
@@ -49,7 +58,11 @@ class AuthService:
             self._jwt_secret,
             self._jwt_algorithm,
             self._jwt_ttl_seconds,
-            extra_claims={"role": user.role, "is_verified": user.is_verified},
+            extra_claims={
+                "role": user.role,
+                "is_verified": user.is_verified,
+                "email_verified": user.email_verified,
+            },
         )
 
     async def _create_refresh_token(self, user_id: UUID, family_id: UUID | None = None) -> str:
@@ -69,6 +82,15 @@ class AuthService:
             return TokenPair(access_token=access, refresh_token=refresh)
         return TokenPair(access_token=access)
 
+    async def _create_verification_token(self, user_id: UUID) -> str:
+        assert self._verification_repo is not None
+        await self._verification_repo.delete_for_user(user_id)
+        raw_token = secrets.token_urlsafe(48)
+        token_hash = _hash_token(raw_token)
+        expires_at = datetime.now(timezone.utc) + timedelta(hours=24)
+        await self._verification_repo.create(user_id, token_hash, expires_at)
+        return raw_token
+
     async def register(self, email: str, password: str, name: str, role: UserRole = UserRole.STUDENT) -> TokenPair:
         existing = await self._repo.get_by_email(email)
         if existing:
@@ -76,6 +98,11 @@ class AuthService:
 
         password_hash = _hash_password(password)
         user = await self._repo.create(email, password_hash, name, role)
+
+        if self._verification_repo:
+            raw_token = await self._create_verification_token(user.id)
+            logger.info("[EMAIL_VERIFY] user_id=%s token=%s", user.id, raw_token)
+
         return await self._create_token_pair(user)
 
     async def authenticate(self, email: str, password: str) -> TokenPair:
@@ -84,6 +111,36 @@ class AuthService:
             raise NotFoundError("Invalid email or password")
 
         return await self._create_token_pair(user)
+
+    async def verify_email(self, token: str) -> User:
+        assert self._verification_repo is not None
+        token_hash = _hash_token(token)
+        stored = await self._verification_repo.get_by_hash(token_hash)
+
+        if not stored:
+            raise AppError("Invalid verification token", status_code=400)
+
+        if stored.used_at is not None:
+            raise AppError("Token already used", status_code=400)
+
+        if stored.expires_at < datetime.now(timezone.utc):
+            raise AppError("Verification token expired", status_code=400)
+
+        await self._verification_repo.mark_used(stored.id)
+        user = await self._repo.set_email_verified(stored.user_id)
+        if not user:
+            raise NotFoundError("User not found")
+        return user
+
+    async def resend_verification(self, user_id: UUID) -> None:
+        assert self._verification_repo is not None
+        user = await self._repo.get_by_id(user_id)
+        if not user:
+            raise NotFoundError("User not found")
+        if user.email_verified:
+            raise ConflictError("Email already verified")
+        raw_token = await self._create_verification_token(user_id)
+        logger.info("[EMAIL_VERIFY] user_id=%s token=%s", user_id, raw_token)
 
     async def refresh(self, refresh_token: str) -> TokenPair:
         assert self._token_repo is not None
@@ -142,3 +199,45 @@ class AuthService:
         if not updated:
             raise NotFoundError("User not found")
         return updated
+
+    async def forgot_password(self, email: str) -> None:
+        """Always returns silently - doesn't reveal if email exists."""
+        assert self._password_reset_repo is not None
+
+        user = await self._repo.get_by_email(email)
+        if not user:
+            return
+
+        recent = await self._password_reset_repo.count_recent(
+            user.id, datetime.now(timezone.utc) - timedelta(hours=1)
+        )
+        if recent >= 3:
+            return
+
+        await self._password_reset_repo.delete_for_user(user.id)
+        raw_token = secrets.token_urlsafe(48)
+        token_hash = _hash_token(raw_token)
+        expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
+        await self._password_reset_repo.create(user.id, token_hash, expires_at)
+        logger.info("[PASSWORD_RESET] user_id=%s token=%s", user.id, raw_token)
+
+    async def reset_password(self, token: str, new_password: str) -> None:
+        assert self._password_reset_repo is not None
+        token_hash = _hash_token(token)
+        stored = await self._password_reset_repo.get_by_hash(token_hash)
+
+        if not stored:
+            raise AppError("Invalid reset token", status_code=400)
+
+        if stored.used_at is not None:
+            raise AppError("Token already used", status_code=400)
+
+        if stored.expires_at < datetime.now(timezone.utc):
+            raise AppError("Reset token expired", status_code=400)
+
+        await self._password_reset_repo.mark_used(stored.id)
+        password_hash = _hash_password(new_password)
+        await self._repo.update_password(stored.user_id, password_hash)
+
+        if self._token_repo:
+            await self._token_repo.revoke_all_for_user(stored.user_id)

@@ -4,6 +4,8 @@ import asyncpg
 
 from app.domain.user import User, UserRole
 
+_COLUMNS = "id, email, password_hash, name, role, is_verified, created_at, email_verified"
+
 
 class UserRepository:
     def __init__(self, pool: asyncpg.Pool) -> None:
@@ -11,10 +13,10 @@ class UserRepository:
 
     async def create(self, email: str, password_hash: str, name: str, role: UserRole) -> User:
         row = await self._pool.fetchrow(
-            """
+            f"""
             INSERT INTO users (email, password_hash, name, role)
             VALUES ($1, $2, $3, $4)
-            RETURNING id, email, password_hash, name, role, is_verified, created_at
+            RETURNING {_COLUMNS}
             """,
             email,
             password_hash,
@@ -25,14 +27,14 @@ class UserRepository:
 
     async def get_by_email(self, email: str) -> User | None:
         row = await self._pool.fetchrow(
-            "SELECT id, email, password_hash, name, role, is_verified, created_at FROM users WHERE email = $1",
+            f"SELECT {_COLUMNS} FROM users WHERE email = $1",
             email,
         )
         return self._to_entity(row) if row else None
 
     async def get_by_id(self, user_id: UUID) -> User | None:
         row = await self._pool.fetchrow(
-            "SELECT id, email, password_hash, name, role, is_verified, created_at FROM users WHERE id = $1",
+            f"SELECT {_COLUMNS} FROM users WHERE id = $1",
             user_id,
         )
         return self._to_entity(row) if row else None
@@ -42,8 +44,8 @@ class UserRepository:
             "SELECT count(*) FROM users WHERE role = 'teacher' AND is_verified = false",
         )
         rows = await self._pool.fetch(
-            """
-            SELECT id, email, password_hash, name, role, is_verified, created_at
+            f"""
+            SELECT {_COLUMNS}
             FROM users WHERE role = 'teacher' AND is_verified = false
             ORDER BY created_at
             LIMIT $1 OFFSET $2
@@ -55,15 +57,33 @@ class UserRepository:
 
     async def set_verified(self, user_id: UUID, verified: bool) -> User | None:
         row = await self._pool.fetchrow(
-            """
+            f"""
             UPDATE users SET is_verified = $2
             WHERE id = $1
-            RETURNING id, email, password_hash, name, role, is_verified, created_at
+            RETURNING {_COLUMNS}
             """,
             user_id,
             verified,
         )
         return self._to_entity(row) if row else None
+
+    async def set_email_verified(self, user_id: UUID) -> User | None:
+        row = await self._pool.fetchrow(
+            f"""
+            UPDATE users SET email_verified = true
+            WHERE id = $1
+            RETURNING {_COLUMNS}
+            """,
+            user_id,
+        )
+        return self._to_entity(row) if row else None
+
+    async def update_password(self, user_id: UUID, password_hash: str) -> None:
+        await self._pool.execute(
+            "UPDATE users SET password_hash = $2 WHERE id = $1",
+            user_id,
+            password_hash,
+        )
 
     @staticmethod
     def _to_entity(row: asyncpg.Record) -> User:
@@ -75,4 +95,5 @@ class UserRepository:
             role=UserRole(row["role"]),
             is_verified=row["is_verified"],
             created_at=row["created_at"],
+            email_verified=row["email_verified"],
         )

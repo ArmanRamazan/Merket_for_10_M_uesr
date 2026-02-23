@@ -21,6 +21,7 @@ class User:
     role: UserRole
     is_verified: bool
     created_at: datetime
+    email_verified: bool = False
 
 
 class UserCreate(BaseModel):
@@ -54,4 +55,5 @@ class UserResponse(BaseModel):
     name: str
     role: UserRole
     is_verified: bool
+    email_verified: bool
     created_at: datetime

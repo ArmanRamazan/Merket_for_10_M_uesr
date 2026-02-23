@@ -102,12 +102,15 @@ async def test_list_courses(client, mock_service, sample_course):
 
 @pytest.mark.asyncio
 async def test_search_courses(client, mock_service, sample_course):
-    mock_service.search.return_value = ([sample_course], 1)
+    mock_service.list_filtered.return_value = ([sample_course], 1)
 
     resp = await client.get("/courses?q=python")
 
     assert resp.status_code == 200
-    mock_service.search.assert_called_once_with("python", 20, 0)
+    mock_service.list_filtered.assert_called_once_with(
+        limit=20, offset=0, category_id=None, level=None,
+        is_free=None, q="python", sort_by="created_at",
+    )
 
 
 @pytest.mark.asyncio

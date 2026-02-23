@@ -54,13 +54,15 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
             await conn.execute(f.read())
         with open("migrations/003_indexes.sql") as f:
             await conn.execute(f.read())
+        with open("migrations/004_total_lessons.sql") as f:
+            await conn.execute(f.read())
 
     _redis = Redis.from_url(app_settings.redis_url)
 
     enrollment_repo = EnrollmentRepository(_pool)
     progress_repo = ProgressRepository(_pool)
     _enrollment_service = EnrollmentService(enrollment_repo)
-    _progress_service = ProgressService(progress_repo)
+    _progress_service = ProgressService(progress_repo, enrollment_repo=enrollment_repo)
     yield
     await _redis.aclose()
     await _pool.close()

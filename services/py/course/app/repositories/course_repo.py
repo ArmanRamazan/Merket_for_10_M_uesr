@@ -9,7 +9,7 @@ import asyncpg
 
 from app.domain.course import Course, CourseLevel
 
-_COLUMNS = "id, teacher_id, title, description, is_free, price, duration_minutes, level, created_at, avg_rating, review_count"
+_COLUMNS = "id, teacher_id, title, description, is_free, price, duration_minutes, level, created_at, avg_rating, review_count, category_id"
 
 
 def _encode_cursor(created_at: datetime, id: UUID) -> str:
@@ -35,11 +35,12 @@ class CourseRepository:
         price: Decimal | None,
         duration_minutes: int,
         level: CourseLevel,
+        category_id: UUID | None = None,
     ) -> Course:
         row = await self._pool.fetchrow(
             f"""
-            INSERT INTO courses (teacher_id, title, description, is_free, price, duration_minutes, level)
-            VALUES ($1, $2, $3, $4, $5, $6, $7)
+            INSERT INTO courses (teacher_id, title, description, is_free, price, duration_minutes, level, category_id)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
             RETURNING {_COLUMNS}
             """,
             teacher_id,
@@ -49,6 +50,7 @@ class CourseRepository:
             price,
             duration_minutes,
             level,
+            category_id,
         )
         return self._to_entity(row)
 
@@ -184,6 +186,61 @@ class CourseRepository:
         next_cur = _encode_cursor(items[-1].created_at, items[-1].id) if len(items) == limit else None
         return items, count, next_cur
 
+    async def list_filtered(
+        self,
+        limit: int = 20,
+        offset: int = 0,
+        category_id: UUID | None = None,
+        level: str | None = None,
+        is_free: bool | None = None,
+        q: str | None = None,
+        sort_by: str = "created_at",
+    ) -> tuple[list[Course], int]:
+        conditions: list[str] = []
+        params: list[object] = []
+        idx = 1
+
+        if category_id is not None:
+            conditions.append(f"category_id = ${idx}")
+            params.append(category_id)
+            idx += 1
+
+        if level is not None:
+            conditions.append(f"level = ${idx}")
+            params.append(level)
+            idx += 1
+
+        if is_free is not None:
+            conditions.append(f"is_free = ${idx}")
+            params.append(is_free)
+            idx += 1
+
+        if q:
+            pattern = f"%{q}%"
+            conditions.append(f"(title ILIKE ${idx} OR description ILIKE ${idx})")
+            params.append(pattern)
+            idx += 1
+
+        where = f"WHERE {' AND '.join(conditions)}" if conditions else ""
+
+        order_map = {
+            "created_at": "created_at DESC",
+            "avg_rating": "avg_rating DESC NULLS LAST, created_at DESC",
+            "price": "price ASC NULLS LAST, created_at DESC",
+        }
+        order = order_map.get(sort_by, "created_at DESC")
+
+        async with self._pool.acquire() as conn:
+            rows = await conn.fetch(
+                f"SELECT {_COLUMNS} FROM courses {where} ORDER BY {order} LIMIT ${idx} OFFSET ${idx + 1}",
+                *params, limit, offset,
+            )
+            count = await conn.fetchval(
+                f"SELECT count(*) FROM courses {where}",
+                *params,
+            )
+        return [self._to_entity(r) for r in rows], count
+
     async def update(self, course_id: UUID, **fields: object) -> Course | None:
         sets: list[str] = []
         values: list[object] = []
@@ -225,4 +282,5 @@ class CourseRepository:
             created_at=row["created_at"],
             avg_rating=row["avg_rating"],
             review_count=row["review_count"],
+            category_id=row["category_id"],
         )

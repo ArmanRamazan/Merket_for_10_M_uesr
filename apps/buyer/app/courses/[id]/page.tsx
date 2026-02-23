@@ -1,21 +1,14 @@
 "use client";
 
-import { useState, useEffect, use } from "react";
+import { useState, use } from "react";
 import Link from "next/link";
-import {
-  courses,
-  enrollments,
-  payments,
-  notifications,
-  reviews as reviewsApi,
-  progress as progressApi,
-  type Course,
-  type CurriculumModule,
-  type Review,
-  type CourseProgress,
-} from "@/lib/api";
+import { payments, notifications, enrollments } from "@/lib/api";
 import { Header } from "@/components/Header";
 import { useAuth } from "@/hooks/use-auth";
+import { useCourse, useCurriculum } from "@/hooks/use-courses";
+import { useMyEnrollments, useEnrollmentCount, useEnroll } from "@/hooks/use-enrollments";
+import { useCourseReviews, useCreateReview } from "@/hooks/use-reviews";
+import { useCourseProgress, useCompletedLessons } from "@/hooks/use-progress";
 
 const LEVEL_LABELS: Record<string, string> = {
   beginner: "Начальный",
@@ -35,53 +28,41 @@ function Stars({ rating }: { rating: number }) {
 export default function CoursePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
   const { user, token } = useAuth();
-  const [course, setCourse] = useState<Course | null>(null);
-  const [curriculum, setCurriculum] = useState<CurriculumModule[]>([]);
-  const [totalLessons, setTotalLessons] = useState(0);
-  const [courseReviews, setCourseReviews] = useState<Review[]>([]);
-  const [reviewTotal, setReviewTotal] = useState(0);
-  const [courseProgress, setCourseProgress] = useState<CourseProgress | null>(null);
-  const [completedLessonIds, setCompletedLessonIds] = useState<Set<string>>(new Set());
-  const [error, setError] = useState("");
-  const [enrolled, setEnrolled] = useState(false);
-  const [enrollCount, setEnrollCount] = useState(0);
+
+  const { data: course, error: courseError } = useCourse(id);
+  const { data: curriculumData } = useCurriculum(id);
+  const { data: enrollCountData } = useEnrollmentCount(id);
+  const { data: reviewsData } = useCourseReviews(id);
+  const { data: myEnrollments } = useMyEnrollments(token, { limit: 100 });
+
+  const curriculum = curriculumData?.modules ?? [];
+  const totalLessons = curriculumData?.total_lessons ?? 0;
+  const enrolled = myEnrollments?.items.some((e) => e.course_id === id) ?? false;
+  const enrollCount = enrollCountData?.count ?? 0;
+
+  const { data: courseProgress } = useCourseProgress(
+    enrolled ? token : null,
+    id,
+    totalLessons,
+  );
+  const { data: completedData } = useCompletedLessons(
+    enrolled ? token : null,
+    id,
+  );
+  const completedLessonIds = new Set(completedData?.completed_lesson_ids ?? []);
+
+  const enroll = useEnroll(token);
   const [enrolling, setEnrolling] = useState(false);
+  const [error, setError] = useState("");
+
   const [reviewRating, setReviewRating] = useState(5);
   const [reviewComment, setReviewComment] = useState("");
-  const [reviewSubmitting, setReviewSubmitting] = useState(false);
-  const [reviewError, setReviewError] = useState("");
-
-  useEffect(() => {
-    courses.get(id).then(setCourse).catch((e) => setError(e.message));
-    courses.curriculum(id).then((r) => {
-      setCurriculum(r.modules);
-      setTotalLessons(r.total_lessons);
-    }).catch(() => {});
-    enrollments.courseCount(id).then((r) => setEnrollCount(r.count)).catch(() => {});
-    reviewsApi.byCourse(id).then((r) => {
-      setCourseReviews(r.items);
-      setReviewTotal(r.total);
-    }).catch(() => {});
-  }, [id]);
-
-  useEffect(() => {
-    if (!token) return;
-    enrollments.me(token, { limit: 100 }).then((r) => {
-      if (r.items.some((e) => e.course_id === id)) setEnrolled(true);
-    }).catch(() => {});
-  }, [token, id]);
-
-  useEffect(() => {
-    if (!token || !enrolled || totalLessons === 0) return;
-    progressApi.course(token, id, totalLessons).then(setCourseProgress).catch(() => {});
-    progressApi.completedLessons(token, id).then((r) => {
-      setCompletedLessonIds(new Set(r.completed_lesson_ids));
-    }).catch(() => {});
-  }, [token, enrolled, id, totalLessons]);
+  const createReview = useCreateReview(token, id);
 
   async function handleEnroll() {
     if (!token || !course) return;
     setEnrolling(true);
+    setError("");
     try {
       let paymentId: string | undefined;
       if (!course.is_free && course.price) {
@@ -91,17 +72,16 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
         });
         paymentId = payment.id;
       }
-      await enrollments.create(token, {
+      await enroll.mutateAsync({
         course_id: course.id,
         payment_id: paymentId,
+        total_lessons: totalLessons,
       });
       await notifications.create(token, {
         type: "enrollment",
         title: `Вы записались на курс: ${course.title}`,
         body: course.is_free ? "Бесплатная запись" : `Оплата: $${course.price}`,
       });
-      setEnrolled(true);
-      setEnrollCount((c) => c + 1);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Ошибка записи");
     } finally {
@@ -109,25 +89,14 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
     }
   }
 
-  async function handleReviewSubmit() {
-    if (!token) return;
-    setReviewSubmitting(true);
-    setReviewError("");
-    try {
-      const r = await reviewsApi.create(token, {
-        course_id: id,
-        rating: reviewRating,
-        comment: reviewComment,
-      });
-      setCourseReviews((prev) => [r, ...prev]);
-      setReviewTotal((t) => t + 1);
-      setReviewComment("");
-    } catch (e) {
-      setReviewError(e instanceof Error ? e.message : "Ошибка");
-    } finally {
-      setReviewSubmitting(false);
-    }
+  function handleReviewSubmit() {
+    createReview.mutate(
+      { course_id: id, rating: reviewRating, comment: reviewComment },
+      { onSuccess: () => setReviewComment("") },
+    );
   }
+
+  const displayError = error || (courseError instanceof Error ? courseError.message : courseError ? "Ошибка" : "");
 
   return (
     <>
@@ -137,8 +106,8 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
           &larr; Назад к курсам
         </Link>
 
-        {error ? (
-          <div className="rounded bg-red-50 p-4 text-red-600">{error}</div>
+        {displayError ? (
+          <div className="rounded bg-red-50 p-4 text-red-600">{displayError}</div>
         ) : !course ? (
           <p className="text-gray-400">Загрузка...</p>
         ) : (
@@ -286,7 +255,7 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
             {/* Reviews */}
             <div className="mt-6 rounded-lg border border-gray-200 bg-white p-6">
               <h2 className="mb-4 text-lg font-bold">
-                Отзывы ({reviewTotal})
+                Отзывы ({reviewsData?.total ?? 0})
               </h2>
 
               {enrolled && user?.role === "student" && (
@@ -310,24 +279,26 @@ export default function CoursePage({ params }: { params: Promise<{ id: string }>
                     className="mb-2 w-full rounded border border-gray-200 p-2 text-sm"
                     rows={2}
                   />
-                  {reviewError && (
-                    <p className="mb-2 text-sm text-red-500">{reviewError}</p>
+                  {createReview.error && (
+                    <p className="mb-2 text-sm text-red-500">
+                      {createReview.error instanceof Error ? createReview.error.message : "Ошибка"}
+                    </p>
                   )}
                   <button
                     onClick={handleReviewSubmit}
-                    disabled={reviewSubmitting}
+                    disabled={createReview.isPending}
                     className="rounded bg-blue-600 px-3 py-1 text-sm text-white hover:bg-blue-700 disabled:opacity-50"
                   >
-                    {reviewSubmitting ? "Отправка..." : "Оставить отзыв"}
+                    {createReview.isPending ? "Отправка..." : "Оставить отзыв"}
                   </button>
                 </div>
               )}
 
-              {courseReviews.length === 0 ? (
+              {!reviewsData || reviewsData.items.length === 0 ? (
                 <p className="text-sm text-gray-400">Пока нет отзывов</p>
               ) : (
                 <ul className="space-y-3">
-                  {courseReviews.map((r) => (
+                  {reviewsData.items.map((r) => (
                     <li key={r.id} className="border-b border-gray-50 pb-3 last:border-0">
                       <div className="flex items-center gap-2">
                         <Stars rating={r.rating} />

@@ -1,7 +1,7 @@
 # 03 — Database Schemas
 
 > Последнее обновление: 2026-02-23
-> Стадия: Phase 1.2 (Reliability & Security)
+> Стадия: Phase 1.3 (UX & Product Quality)
 
 ---
 
@@ -13,10 +13,13 @@
 identity-db (PostgreSQL 16 Alpine, :5433)
   └── database: identity
        ├── table: users
-       └── table: refresh_tokens
+       ├── table: refresh_tokens
+       ├── table: email_verification_tokens
+       └── table: password_reset_tokens
 
 course-db (PostgreSQL 16 Alpine, :5434)
   └── database: course
+       ├── table: categories
        ├── table: courses
        ├── table: modules
        ├── table: lessons
@@ -55,8 +58,9 @@ CREATE TABLE users (
     password_hash VARCHAR(255) NOT NULL,
     name          VARCHAR(255) NOT NULL,
     role          user_role NOT NULL DEFAULT 'student',
-    is_verified   BOOLEAN NOT NULL DEFAULT false,
-    created_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+    is_verified    BOOLEAN NOT NULL DEFAULT false,
+    email_verified BOOLEAN NOT NULL DEFAULT false,
+    created_at     TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 ```
 
@@ -68,6 +72,7 @@ CREATE TABLE users (
 | `name` | VARCHAR(255) | NOT NULL | Имя пользователя |
 | `role` | user_role | NOT NULL, DEFAULT 'student' | Роль: student, teacher или admin |
 | `is_verified` | BOOLEAN | NOT NULL, DEFAULT false | Верификация преподавателя |
+| `email_verified` | BOOLEAN | NOT NULL, DEFAULT false | Подтверждение email |
 | `created_at` | TIMESTAMPTZ | NOT NULL, DEFAULT now() | Дата создания |
 
 **Индексы:** PK (id) + UNIQUE (email).
@@ -77,6 +82,8 @@ CREATE TABLE users (
 - `002_add_role.sql` — добавление role ENUM и is_verified
 - `003_add_admin_role.sql` — добавление значения `admin` в ENUM user_role
 - `004_refresh_tokens.sql` — таблица refresh_tokens + индексы
+- `005_email_verification.sql` — email_verified column + email_verification_tokens table
+- `006_password_reset.sql` — password_reset_tokens table
 
 ### Table: `refresh_tokens`
 
@@ -106,9 +113,55 @@ CREATE TABLE refresh_tokens (
 
 **Token rotation:** при каждом refresh все токены в family отзываются, создаётся новый с тем же family_id. При повторном использовании отозванного токена — вся family блокируется (reuse detection).
 
+### Table: `email_verification_tokens`
+
+```sql
+CREATE TABLE email_verification_tokens (
+    id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token_hash VARCHAR(255) NOT NULL UNIQUE,
+    expires_at TIMESTAMPTZ NOT NULL,
+    used_at    TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+```
+
+**Индексы:** PK (id) + UNIQUE (token_hash) + idx_email_verify_user_id.
+
+TTL: 24 часа. При регистрации создаётся токен; raw token логируется `[EMAIL_VERIFY]` (stub, без реальной отправки).
+
+### Table: `password_reset_tokens`
+
+```sql
+CREATE TABLE password_reset_tokens (
+    id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    token_hash VARCHAR(255) NOT NULL UNIQUE,
+    expires_at TIMESTAMPTZ NOT NULL,
+    used_at    TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+```
+
+**Индексы:** PK (id) + UNIQUE (token_hash) + idx_password_reset_user_id.
+
+TTL: 1 час. Rate limit: 3 запроса в час на пользователя (silent ignore). После сброса пароля все refresh tokens отзываются.
+
 ---
 
 ## Course DB
+
+### Table: `categories`
+
+```sql
+CREATE TABLE categories (
+    id   UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    name VARCHAR(100) NOT NULL UNIQUE,
+    slug VARCHAR(100) NOT NULL UNIQUE
+);
+```
+
+Seed data: Programming, Design, Business, Marketing, Data Science, Languages, Music, Other.
 
 ### ENUM: `course_level`
 
@@ -130,6 +183,7 @@ CREATE TABLE courses (
     level            course_level NOT NULL DEFAULT 'beginner',
     avg_rating       NUMERIC(3,2),
     review_count     INTEGER NOT NULL DEFAULT 0,
+    category_id      UUID REFERENCES categories(id),
     created_at       TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 ```
@@ -146,9 +200,10 @@ CREATE TABLE courses (
 | `level` | course_level | NOT NULL, DEFAULT 'beginner' | Уровень сложности |
 | `avg_rating` | NUMERIC(3,2) | nullable | Средний рейтинг (денормализация) |
 | `review_count` | INTEGER | NOT NULL, DEFAULT 0 | Количество отзывов (денормализация) |
+| `category_id` | UUID | nullable, FK → categories(id) | Категория курса |
 | `created_at` | TIMESTAMPTZ | NOT NULL, DEFAULT now() | Дата создания |
 
-**Индексы:** PK (id) + idx_courses_teacher_id + GIN (title, description) через pg_trgm. `teacher_id` не имеет FK constraint — eventual consistency.
+**Индексы:** PK (id) + idx_courses_teacher_id + idx_courses_category_id + GIN (title, description) через pg_trgm. `teacher_id` не имеет FK constraint — eventual consistency.
 
 **Поиск:** `ILIKE '%query%'` по title и description. pg_trgm GIN index обеспечивает p99 < 50ms на 100K курсов.
 
@@ -158,6 +213,7 @@ CREATE TABLE courses (
 - `003_reviews.sql` — таблица reviews + avg_rating/review_count в courses
 - `004_indexes.sql` — FK indexes (teacher_id, course_id, module_id, student_id)
 - `005_pg_trgm.sql` — pg_trgm extension + GIN index на courses (title, description)
+- `006_categories.sql` — таблица categories + seed data + category_id FK на courses
 
 ### Table: `modules`
 
@@ -220,8 +276,9 @@ CREATE TABLE enrollments (
     student_id  UUID NOT NULL,
     course_id   UUID NOT NULL,
     payment_id  UUID,
-    status      enrollment_status NOT NULL DEFAULT 'enrolled',
-    enrolled_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    status        enrollment_status NOT NULL DEFAULT 'enrolled',
+    total_lessons INTEGER NOT NULL DEFAULT 0,
+    enrolled_at   TIMESTAMPTZ NOT NULL DEFAULT now(),
     UNIQUE(student_id, course_id)
 );
 ```
@@ -233,6 +290,7 @@ CREATE TABLE enrollments (
 | `course_id` | UUID | NOT NULL | ID курса (из Course) |
 | `payment_id` | UUID | nullable | ID оплаты (из Payment, для платных курсов) |
 | `status` | enrollment_status | NOT NULL, DEFAULT 'enrolled' | Статус записи |
+| `total_lessons` | INTEGER | NOT NULL, DEFAULT 0 | Общее число уроков (для auto-completion) |
 | `enrolled_at` | TIMESTAMPTZ | NOT NULL, DEFAULT now() | Дата записи |
 
 **Индексы:** PK (id) + UNIQUE (student_id, course_id). Нет FK constraints — eventual consistency.
@@ -240,6 +298,10 @@ CREATE TABLE enrollments (
 **Миграции:**
 - `001_enrollments.sql` — создание ENUM enrollment_status и таблицы enrollments
 - `002_lesson_progress.sql` — таблица lesson_progress
+- `003_indexes.sql` — FK indexes (student_id, course_id)
+- `004_total_lessons.sql` — total_lessons column для auto-completion
+
+**Auto-completion:** При записи передаётся `total_lessons`. После завершения урока ProgressService проверяет: если все уроки пройдены → status = COMPLETED; если первый урок → status = IN_PROGRESS.
 
 ### Table: `lesson_progress`
 

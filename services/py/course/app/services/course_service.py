@@ -37,6 +37,7 @@ class CourseService:
         price: Decimal | None,
         duration_minutes: int,
         level: CourseLevel,
+        category_id: UUID | None = None,
     ) -> Course:
         if role != "teacher":
             raise ForbiddenError("Only teachers can create courses")
@@ -45,7 +46,8 @@ class CourseService:
         title = sanitize_text(title)
         description = sanitize_html(description)
         return await self._repo.create(
-            teacher_id, title, description, is_free, price, duration_minutes, level
+            teacher_id, title, description, is_free, price, duration_minutes, level,
+            category_id=category_id,
         )
 
     async def get(self, course_id: UUID) -> Course:
@@ -64,6 +66,7 @@ class CourseService:
                     created_at=cached["created_at"],
                     avg_rating=Decimal(cached["avg_rating"]) if cached.get("avg_rating") is not None else None,
                     review_count=cached.get("review_count", 0),
+                    category_id=UUID(cached["category_id"]) if cached.get("category_id") else None,
                 )
 
         course = await self._repo.get_by_id(course_id)
@@ -83,12 +86,28 @@ class CourseService:
                 "created_at": course.created_at.isoformat(),
                 "avg_rating": str(course.avg_rating) if course.avg_rating is not None else None,
                 "review_count": course.review_count,
+                "category_id": str(course.category_id) if course.category_id else None,
             })
 
         return course
 
     async def list(self, limit: int = 20, offset: int = 0) -> tuple[list[Course], int]:
         return await self._repo.list(limit, offset)
+
+    async def list_filtered(
+        self,
+        limit: int = 20,
+        offset: int = 0,
+        category_id: UUID | None = None,
+        level: str | None = None,
+        is_free: bool | None = None,
+        q: str | None = None,
+        sort_by: str = "created_at",
+    ) -> tuple[list[Course], int]:
+        return await self._repo.list_filtered(
+            limit=limit, offset=offset, category_id=category_id,
+            level=level, is_free=is_free, q=q, sort_by=sort_by,
+        )
 
     async def search(self, query: str, limit: int = 20, offset: int = 0) -> tuple[list[Course], int]:
         return await self._repo.search(query, limit, offset)
@@ -194,6 +213,7 @@ class CourseService:
             created_at=course.created_at,
             avg_rating=course.avg_rating,
             review_count=course.review_count,
+            category_id=course.category_id,
         )
 
         result = CurriculumResponse(

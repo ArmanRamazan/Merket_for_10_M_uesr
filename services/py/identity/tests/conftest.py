@@ -13,6 +13,8 @@ import bcrypt
 from app.domain.user import User, UserRole
 from app.repositories.user_repo import UserRepository
 from app.repositories.token_repo import TokenRepository
+from app.repositories.verification_repo import VerificationRepository
+from app.repositories.password_reset_repo import PasswordResetRepository
 from app.services.auth_service import AuthService
 
 
@@ -31,6 +33,7 @@ def sample_user(user_id):
         role=UserRole.STUDENT,
         is_verified=False,
         created_at=datetime.now(timezone.utc),
+        email_verified=False,
     )
 
 
@@ -44,6 +47,7 @@ def teacher_user(user_id):
         role=UserRole.TEACHER,
         is_verified=True,
         created_at=datetime.now(timezone.utc),
+        email_verified=True,
     )
 
 
@@ -57,6 +61,7 @@ def unverified_teacher():
         role=UserRole.TEACHER,
         is_verified=False,
         created_at=datetime.now(timezone.utc),
+        email_verified=False,
     )
 
 
@@ -70,6 +75,7 @@ def admin_user():
         role=UserRole.ADMIN,
         is_verified=True,
         created_at=datetime.now(timezone.utc),
+        email_verified=True,
     )
 
 
@@ -84,7 +90,17 @@ def mock_token_repo():
 
 
 @pytest.fixture
-def auth_service(mock_repo, mock_token_repo):
+def mock_verification_repo():
+    return AsyncMock(spec=VerificationRepository)
+
+
+@pytest.fixture
+def mock_password_reset_repo():
+    return AsyncMock(spec=PasswordResetRepository)
+
+
+@pytest.fixture
+def auth_service(mock_repo, mock_token_repo, mock_verification_repo, mock_password_reset_repo):
     return AuthService(
         repo=mock_repo,
         jwt_secret="test-secret",
@@ -92,6 +108,8 @@ def auth_service(mock_repo, mock_token_repo):
         jwt_ttl_seconds=3600,
         token_repo=mock_token_repo,
         refresh_token_ttl_days=30,
+        verification_repo=mock_verification_repo,
+        password_reset_repo=mock_password_reset_repo,
     )
 
 

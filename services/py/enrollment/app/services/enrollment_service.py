@@ -19,12 +19,13 @@ class EnrollmentService:
         role: str,
         course_id: UUID,
         payment_id: UUID | None,
+        total_lessons: int = 0,
     ) -> Enrollment:
         if role != "student":
             raise ForbiddenError("Only students can enroll in courses")
 
         try:
-            return await self._repo.create(student_id, course_id, payment_id)
+            return await self._repo.create(student_id, course_id, payment_id, total_lessons)
         except asyncpg.UniqueViolationError as exc:
             raise ConflictError("Already enrolled in this course") from exc
 

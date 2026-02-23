@@ -13,6 +13,7 @@ from common.health import create_health_router
 from common.rate_limit import RateLimitMiddleware
 from app.cache import CourseCache
 from app.config import Settings
+from app.repositories.category_repo import CategoryRepository
 from app.repositories.course_repo import CourseRepository
 from app.repositories.module_repo import ModuleRepository
 from app.repositories.lesson_repo import LessonRepository
@@ -21,6 +22,7 @@ from app.services.course_service import CourseService
 from app.services.module_service import ModuleService
 from app.services.lesson_service import LessonService
 from app.services.review_service import ReviewService
+from app.routes.categories import router as categories_router
 from app.routes.courses import router as courses_router
 from app.routes.modules import router as modules_router
 from app.routes.lessons import router as lessons_router
@@ -34,6 +36,7 @@ _course_service: CourseService | None = None
 _module_service: ModuleService | None = None
 _lesson_service: LessonService | None = None
 _review_service: ReviewService | None = None
+_category_repo: CategoryRepository | None = None
 
 
 def get_course_service() -> CourseService:
@@ -56,9 +59,14 @@ def get_review_service() -> ReviewService:
     return _review_service
 
 
+def get_category_repo() -> CategoryRepository:
+    assert _category_repo is not None
+    return _category_repo
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
-    global _pool, _redis, _course_service, _module_service, _lesson_service, _review_service
+    global _pool, _redis, _course_service, _module_service, _lesson_service, _review_service, _category_repo
 
     _pool = await create_pool(
         app_settings.database_url,
@@ -77,10 +85,13 @@ async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
             await conn.execute(f.read())
         with open("migrations/005_indexes.sql") as f:
             await conn.execute(f.read())
+        with open("migrations/006_categories.sql") as f:
+            await conn.execute(f.read())
 
     _redis = Redis.from_url(app_settings.redis_url)
     _cache = CourseCache(_redis)
 
+    _category_repo = CategoryRepository(_pool)
     course_repo = CourseRepository(_pool)
     module_repo = ModuleRepository(_pool)
     lesson_repo = LessonRepository(_pool)
@@ -110,6 +121,7 @@ app.add_middleware(
     limit=app_settings.rate_limit_per_minute,
     window=60,
 )
+app.include_router(categories_router)
 app.include_router(courses_router)
 app.include_router(modules_router)
 app.include_router(lessons_router)

@@ -5,13 +5,20 @@ from uuid import UUID
 import asyncpg
 
 from common.errors import ConflictError, ForbiddenError
+from app.domain.enrollment import EnrollmentStatus
 from app.domain.progress import LessonProgress
+from app.repositories.enrollment_repo import EnrollmentRepository
 from app.repositories.progress_repo import ProgressRepository
 
 
 class ProgressService:
-    def __init__(self, repo: ProgressRepository) -> None:
+    def __init__(
+        self,
+        repo: ProgressRepository,
+        enrollment_repo: EnrollmentRepository | None = None,
+    ) -> None:
         self._repo = repo
+        self._enrollment_repo = enrollment_repo
 
     async def complete_lesson(
         self, student_id: UUID, role: str, lesson_id: UUID, course_id: UUID
@@ -19,9 +26,27 @@ class ProgressService:
         if role != "student":
             raise ForbiddenError("Only students can complete lessons")
         try:
-            return await self._repo.complete_lesson(student_id, lesson_id, course_id)
+            progress = await self._repo.complete_lesson(student_id, lesson_id, course_id)
         except asyncpg.UniqueViolationError as exc:
             raise ConflictError("Lesson already completed") from exc
+
+        if self._enrollment_repo:
+            await self._check_auto_completion(student_id, course_id)
+
+        return progress
+
+    async def _check_auto_completion(self, student_id: UUID, course_id: UUID) -> None:
+        assert self._enrollment_repo is not None
+        enrollment = await self._enrollment_repo.get_by_student_and_course(student_id, course_id)
+        if not enrollment or enrollment.total_lessons == 0:
+            return
+
+        completed = await self._repo.count_completed(student_id, course_id)
+
+        if completed >= enrollment.total_lessons and enrollment.status != EnrollmentStatus.COMPLETED:
+            await self._enrollment_repo.update_status(enrollment.id, EnrollmentStatus.COMPLETED)
+        elif completed == 1 and enrollment.status == EnrollmentStatus.ENROLLED:
+            await self._enrollment_repo.update_status(enrollment.id, EnrollmentStatus.IN_PROGRESS)
 
     async def get_course_progress(
         self, student_id: UUID, course_id: UUID, total_lessons: int

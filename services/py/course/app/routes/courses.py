@@ -49,6 +49,7 @@ def _to_response(c: "Course") -> CourseResponse:
         created_at=c.created_at,
         avg_rating=c.avg_rating,
         review_count=c.review_count,
+        category_id=c.category_id,
     )
 
 
@@ -56,10 +57,22 @@ def _to_response(c: "Course") -> CourseResponse:
 async def list_courses(
     service: Annotated[CourseService, Depends(_get_course_service)],
     q: Annotated[str | None, Query()] = None,
+    category_id: Annotated[UUID | None, Query()] = None,
+    level: Annotated[str | None, Query()] = None,
+    is_free: Annotated[bool | None, Query()] = None,
+    sort_by: Annotated[str, Query()] = "created_at",
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
     offset: Annotated[int, Query(ge=0)] = 0,
     cursor: Annotated[str | None, Query()] = None,
 ) -> CourseListResponse:
+    has_filters = category_id is not None or level is not None or is_free is not None or sort_by != "created_at"
+    if has_filters or cursor is None:
+        if has_filters or q:
+            items, total = await service.list_filtered(
+                limit=limit, offset=offset, category_id=category_id,
+                level=level, is_free=is_free, q=q, sort_by=sort_by,
+            )
+            return CourseListResponse(items=[_to_response(c) for c in items], total=total)
     if cursor is not None:
         if q:
             items, total, next_cursor = await service.search_cursor(q, limit, cursor)
@@ -70,10 +83,7 @@ async def list_courses(
             total=total,
             next_cursor=next_cursor,
         )
-    if q:
-        items, total = await service.search(q, limit, offset)
-    else:
-        items, total = await service.list(limit, offset)
+    items, total = await service.list(limit, offset)
     return CourseListResponse(
         items=[_to_response(c) for c in items],
         total=total,
@@ -137,6 +147,7 @@ async def create_course(
         price=body.price,
         duration_minutes=body.duration_minutes,
         level=body.level,
+        category_id=body.category_id,
     )
     return _to_response(c)
 

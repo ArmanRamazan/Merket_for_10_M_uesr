@@ -62,6 +62,7 @@ async def verify_teacher(
         email=user.email,
         name=user.name,
         role=user.role,
+        email_verified=user.email_verified,
         is_verified=user.is_verified,
         created_at=user.created_at,
     )

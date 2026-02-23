@@ -1,45 +1,32 @@
 "use client";
 
-import { useState, useEffect } from "react";
-import { admin, type PendingTeacher } from "@/lib/api";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { admin } from "@/lib/api";
 import { Header } from "@/components/Header";
 import { useAuth } from "@/hooks/use-auth";
 
 export default function AdminTeachersPage() {
   const { user, token, loading } = useAuth();
-  const [teachers, setTeachers] = useState<PendingTeacher[]>([]);
-  const [total, setTotal] = useState(0);
-  const [fetching, setFetching] = useState(true);
-  const [verifying, setVerifying] = useState<string | null>(null);
+  const queryClient = useQueryClient();
 
-  useEffect(() => {
-    if (!token || !user || user.role !== "admin") {
-      setFetching(false);
-      return;
-    }
-    admin
-      .pendingTeachers(token)
-      .then((r) => {
-        setTeachers(r.items);
-        setTotal(r.total);
-      })
-      .catch(() => {})
-      .finally(() => setFetching(false));
-  }, [token, user]);
+  const { data, isLoading } = useQuery({
+    queryKey: ["admin", "pendingTeachers"],
+    queryFn: () => admin.pendingTeachers(token!),
+    enabled: !!token && user?.role === "admin",
+  });
 
-  async function handleVerify(userId: string) {
-    if (!token) return;
-    setVerifying(userId);
-    try {
-      await admin.verifyTeacher(token, userId);
-      setTeachers((prev) => prev.filter((t) => t.id !== userId));
-      setTotal((t) => t - 1);
-    } catch {
-      // ignore
-    } finally {
-      setVerifying(null);
-    }
-  }
+  const verify = useMutation({
+    mutationFn: (userId: string) => admin.verifyTeacher(token!, userId),
+    onSuccess: (_data, userId) => {
+      queryClient.setQueryData(
+        ["admin", "pendingTeachers"],
+        (old: typeof data | undefined) =>
+          old
+            ? { items: old.items.filter((t) => t.id !== userId), total: old.total - 1 }
+            : undefined,
+      );
+    },
+  });
 
   if (!loading && (!user || user.role !== "admin")) {
     return (
@@ -58,13 +45,13 @@ export default function AdminTeachersPage() {
       <main className="mx-auto max-w-4xl px-4 py-6">
         <h1 className="mb-4 text-2xl font-bold">Верификация преподавателей</h1>
 
-        {fetching ? (
+        {isLoading ? (
           <p className="text-gray-400">Загрузка...</p>
-        ) : teachers.length === 0 ? (
+        ) : !data || data.items.length === 0 ? (
           <p className="text-gray-500">Нет заявок на верификацию</p>
         ) : (
           <>
-            <p className="mb-4 text-sm text-gray-500">Всего заявок: {total}</p>
+            <p className="mb-4 text-sm text-gray-500">Всего заявок: {data.total}</p>
             <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white">
               <table className="w-full text-left text-sm">
                 <thead className="border-b border-gray-200 bg-gray-50">
@@ -76,7 +63,7 @@ export default function AdminTeachersPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {teachers.map((t) => (
+                  {data.items.map((t) => (
                     <tr key={t.id} className="border-b border-gray-100 last:border-0">
                       <td className="px-4 py-3">{t.name}</td>
                       <td className="px-4 py-3 text-gray-500">{t.email}</td>
@@ -85,11 +72,11 @@ export default function AdminTeachersPage() {
                       </td>
                       <td className="px-4 py-3">
                         <button
-                          onClick={() => handleVerify(t.id)}
-                          disabled={verifying === t.id}
+                          onClick={() => verify.mutate(t.id)}
+                          disabled={verify.isPending}
                           className="rounded bg-green-600 px-3 py-1 text-xs text-white hover:bg-green-700 disabled:opacity-50"
                         >
-                          {verifying === t.id ? "..." : "Одобрить"}
+                          {verify.isPending ? "..." : "Одобрить"}
                         </button>
                       </td>
                     </tr>

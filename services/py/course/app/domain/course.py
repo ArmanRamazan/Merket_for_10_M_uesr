@@ -31,6 +31,7 @@ class Course:
     created_at: datetime
     avg_rating: Decimal | None = None
     review_count: int = 0
+    category_id: UUID | None = None
 
 
 class CourseCreate(BaseModel):
@@ -40,6 +41,7 @@ class CourseCreate(BaseModel):
     price: Decimal | None = None
     duration_minutes: int = 0
     level: CourseLevel = CourseLevel.BEGINNER
+    category_id: UUID | None = None
 
 
 class CourseUpdate(BaseModel):
@@ -49,6 +51,7 @@ class CourseUpdate(BaseModel):
     price: Decimal | None = None
     duration_minutes: int | None = None
     level: CourseLevel | None = None
+    category_id: UUID | None = None
 
 
 class CourseResponse(BaseModel):
@@ -63,6 +66,7 @@ class CourseResponse(BaseModel):
     created_at: datetime
     avg_rating: Decimal | None = None
     review_count: int = 0
+    category_id: UUID | None = None
 
 
 class CourseListResponse(BaseModel):

@@ -15,7 +15,14 @@ export interface User {
   name: string;
   role: "student" | "teacher" | "admin";
   is_verified: boolean;
+  email_verified: boolean;
   created_at: string;
+}
+
+export interface Category {
+  id: string;
+  name: string;
+  slug: string;
 }
 
 export interface Course {
@@ -30,6 +37,7 @@ export interface Course {
   created_at: string;
   avg_rating: number | null;
   review_count: number;
+  category_id: string | null;
 }
 
 export interface CourseList {
@@ -194,14 +202,61 @@ export const identity = {
       headers: authHeaders(token),
     });
   },
+  verifyEmail(token: string) {
+    return request<User>(`${IDENTITY_URL}/verify-email`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token }),
+    });
+  },
+  resendVerification(token: string) {
+    return fetch(`${IDENTITY_URL}/resend-verification`, {
+      method: "POST",
+      headers: authHeaders(token),
+    });
+  },
+  forgotPassword(email: string) {
+    return fetch(`${IDENTITY_URL}/forgot-password`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ email }),
+    });
+  },
+  resetPassword(token: string, new_password: string) {
+    return fetch(`${IDENTITY_URL}/reset-password`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ token, new_password }),
+    }).then((res) => {
+      if (!res.ok) return res.json().then((b) => { throw new Error(b.detail || "Error"); });
+    });
+  },
+};
+
+export const categories = {
+  list() {
+    return request<Category[]>(`${COURSE_URL}/categories`);
+  },
 };
 
 export const courses = {
-  list(params?: { q?: string; limit?: number; offset?: number }) {
+  list(params?: {
+    q?: string;
+    limit?: number;
+    offset?: number;
+    category_id?: string;
+    level?: string;
+    is_free?: boolean;
+    sort_by?: string;
+  }) {
     const sp = new URLSearchParams();
     if (params?.q) sp.set("q", params.q);
     if (params?.limit) sp.set("limit", String(params.limit));
     if (params?.offset) sp.set("offset", String(params.offset));
+    if (params?.category_id) sp.set("category_id", params.category_id);
+    if (params?.level) sp.set("level", params.level);
+    if (params?.is_free !== undefined) sp.set("is_free", String(params.is_free));
+    if (params?.sort_by) sp.set("sort_by", params.sort_by);
     const qs = sp.toString();
     return request<CourseList>(`${COURSE_URL}/courses${qs ? `?${qs}` : ""}`);
   },
@@ -354,7 +409,7 @@ export const progress = {
 };
 
 export const enrollments = {
-  create(token: string, data: { course_id: string; payment_id?: string }) {
+  create(token: string, data: { course_id: string; payment_id?: string; total_lessons?: number }) {
     return request<Enrollment>(`${ENROLLMENT_URL}/enrollments`, {
       method: "POST",
       headers: authHeaders(token),

@@ -1,27 +1,26 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useQuery } from "@tanstack/react-query";
 import Link from "next/link";
-import { courses, enrollments, type Course } from "@/lib/api";
+import { courses, enrollments } from "@/lib/api";
 import { Header } from "@/components/Header";
 import { useAuth } from "@/hooks/use-auth";
 
 export default function MyCoursesPage() {
   const { user, token } = useAuth();
-  const [myCourses, setMyCourses] = useState<Course[]>([]);
-  const [enrollCounts, setEnrollCounts] = useState<Record<string, number>>({});
-  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    if (!token || !user || user.role !== "teacher") {
-      setLoading(false);
-      return;
-    }
-    courses.my(token, { limit: 100 }).then(async (r) => {
-      setMyCourses(r.items);
+  const { data: myCourses, isLoading } = useQuery({
+    queryKey: ["courses", "my"],
+    queryFn: () => courses.my(token!, { limit: 100 }),
+    enabled: !!token && user?.role === "teacher",
+  });
+
+  const { data: enrollCounts } = useQuery({
+    queryKey: ["enrollments", "counts", myCourses?.items.map((c) => c.id)],
+    queryFn: async () => {
       const counts: Record<string, number> = {};
       await Promise.all(
-        r.items.map(async (c) => {
+        (myCourses?.items ?? []).map(async (c) => {
           try {
             const res = await enrollments.courseCount(c.id);
             counts[c.id] = res.count;
@@ -30,10 +29,10 @@ export default function MyCoursesPage() {
           }
         }),
       );
-      setEnrollCounts(counts);
-      setLoading(false);
-    }).catch(() => setLoading(false));
-  }, [token, user]);
+      return counts;
+    },
+    enabled: !!myCourses && myCourses.items.length > 0,
+  });
 
   return (
     <>
@@ -53,15 +52,15 @@ export default function MyCoursesPage() {
           </p>
         ) : user.role !== "teacher" ? (
           <p className="text-gray-500">Эта страница доступна только преподавателям</p>
-        ) : loading ? (
+        ) : isLoading ? (
           <p className="text-gray-400">Загрузка...</p>
-        ) : myCourses.length === 0 ? (
+        ) : !myCourses || myCourses.items.length === 0 ? (
           <p className="text-gray-500">У вас пока нет курсов.{" "}
             <Link href="/courses/new" className="text-blue-600 hover:underline">Создать курс</Link>
           </p>
         ) : (
           <div className="space-y-3">
-            {myCourses.map((c) => (
+            {myCourses.items.map((c) => (
               <div
                 key={c.id}
                 className="flex items-center justify-between rounded-lg border border-gray-200 bg-white p-4"
@@ -71,7 +70,7 @@ export default function MyCoursesPage() {
                     {c.title}
                   </Link>
                   <div className="mt-1 flex items-center gap-3 text-sm text-gray-500">
-                    <span>{enrollCounts[c.id] ?? 0} студентов</span>
+                    <span>{enrollCounts?.[c.id] ?? 0} студентов</span>
                     {c.avg_rating != null && (
                       <span className="text-yellow-500">★ {c.avg_rating}</span>
                     )}

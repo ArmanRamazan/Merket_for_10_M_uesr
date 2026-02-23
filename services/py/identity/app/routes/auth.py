@@ -10,6 +10,8 @@ from common.errors import AppError
 from common.rate_limit import RateLimiter
 from app.domain.token import RefreshRequest
 from app.domain.user import UserCreate, UserLogin, TokenPair, UserResponse
+from app.domain.verification import VerifyEmailRequest
+from app.domain.password_reset import ForgotPasswordRequest, ResetPasswordRequest
 from app.services.auth_service import AuthService
 
 router = APIRouter(tags=["auth"])
@@ -81,6 +83,7 @@ async def me(
         name=user.name,
         role=user.role,
         is_verified=user.is_verified,
+        email_verified=user.email_verified,
         created_at=user.created_at,
     )
 
@@ -99,4 +102,48 @@ async def logout(
     service: Annotated[AuthService, Depends(_get_auth_service)],
 ) -> Response:
     await service.logout(body.refresh_token)
+    return Response(status_code=204)
+
+
+@router.post("/verify-email", response_model=UserResponse)
+async def verify_email(
+    body: VerifyEmailRequest,
+    service: Annotated[AuthService, Depends(_get_auth_service)],
+) -> UserResponse:
+    user = await service.verify_email(body.token)
+    return UserResponse(
+        id=user.id,
+        email=user.email,
+        name=user.name,
+        role=user.role,
+        is_verified=user.is_verified,
+        email_verified=user.email_verified,
+        created_at=user.created_at,
+    )
+
+
+@router.post("/resend-verification", status_code=204)
+async def resend_verification(
+    user_id: Annotated[UUID, Depends(_get_current_user_id)],
+    service: Annotated[AuthService, Depends(_get_auth_service)],
+) -> Response:
+    await service.resend_verification(user_id)
+    return Response(status_code=204)
+
+
+@router.post("/forgot-password", status_code=204)
+async def forgot_password(
+    body: ForgotPasswordRequest,
+    service: Annotated[AuthService, Depends(_get_auth_service)],
+) -> Response:
+    await service.forgot_password(body.email)
+    return Response(status_code=204)
+
+
+@router.post("/reset-password", status_code=204)
+async def reset_password(
+    body: ResetPasswordRequest,
+    service: Annotated[AuthService, Depends(_get_auth_service)],
+) -> Response:
+    await service.reset_password(body.token, body.new_password)
     return Response(status_code=204)

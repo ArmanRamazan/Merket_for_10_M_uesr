@@ -15,6 +15,7 @@ export default function RegisterPage() {
   const [role, setRole] = useState("student");
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [registered, setRegistered] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -22,7 +23,7 @@ export default function RegisterPage() {
     setSubmitting(true);
     try {
       await register(email, password, name, role);
-      router.push("/");
+      setRegistered(true);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Registration failed");
     } finally {
@@ -35,6 +36,15 @@ export default function RegisterPage() {
       <Header />
       <main className="mx-auto max-w-sm px-4 py-12">
         <h1 className="mb-6 text-center text-2xl font-bold">Регистрация</h1>
+
+        {registered && (
+          <div className="mb-4 rounded bg-green-50 p-4 text-center text-sm text-green-700">
+            Регистрация прошла успешно! Проверьте email для подтверждения аккаунта.
+            <Link href="/" className="mt-2 block text-blue-600 hover:underline">
+              Перейти на главную
+            </Link>
+          </div>
+        )}
 
         {error && (
           <div className="mb-4 rounded bg-red-50 p-3 text-sm text-red-600">
