@@ -4,6 +4,7 @@ requires-python = ">=3.12"
 
 [manifest]
 members = [
+    "ai",
     "common",
     "course",
     "eduplatform",
@@ -12,6 +13,45 @@ members = [
     "notification",
     "payment",
     "seed",
+]
+
+[[package]]
+name = "ai"
+version = "0.1.0"
+source = { virtual = "services/py/ai" }
+dependencies = [
+    { name = "common" },
+    { name = "fastapi" },
+    { name = "httpx" },
+    { name = "prometheus-fastapi-instrumentator" },
+    { name = "pydantic-settings" },
+    { name = "pyjwt" },
+    { name = "redis" },
+    { name = "uvicorn" },
+]
+
+[package.dev-dependencies]
+dev = [
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "common", editable = "libs/py/common" },
+    { name = "fastapi", specifier = ">=0.115" },
+    { name = "httpx", specifier = ">=0.28" },
+    { name = "prometheus-fastapi-instrumentator", specifier = ">=7.0" },
+    { name = "pydantic-settings", specifier = ">=2.7" },
+    { name = "pyjwt", specifier = ">=2.10" },
+    { name = "redis", specifier = ">=5.0" },
+    { name = "uvicorn", specifier = ">=0.34" },
+]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "pytest", specifier = ">=8.0" },
+    { name = "pytest-asyncio", specifier = ">=0.25" },
 ]
 
 [[package]]

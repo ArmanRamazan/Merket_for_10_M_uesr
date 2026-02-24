@@ -217,6 +217,32 @@ services:
     stop_grace_period: 30s
     restart: unless-stopped
 
+  ai:
+    build:
+      context: .
+      dockerfile: deploy/docker/ai.Dockerfile
+    ports:
+      - "8006:8006"
+    environment:
+      DATABASE_URL: postgresql://unused:unused@localhost:5432/unused
+      REDIS_URL: redis://redis:6379
+      JWT_SECRET: ${JWT_SECRET:-change-me-in-production}
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:3001}
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.0-flash-lite}
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8006 --workers 4 --timeout-graceful-shutdown 25
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8006/health/live')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 15s
+    stop_grace_period: 30s
+    restart: unless-stopped
+
   seed:
     build:
       context: .
@@ -259,6 +285,7 @@ services:
       - enrollment
       - payment
       - notification
+      - ai
     restart: unless-stopped
 
   grafana:

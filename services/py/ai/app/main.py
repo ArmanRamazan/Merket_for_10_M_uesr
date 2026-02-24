@@ -1,0 +1,101 @@
+from contextlib import asynccontextmanager
+from collections.abc import AsyncIterator
+
+import httpx
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
+from fastapi import APIRouter
+from prometheus_fastapi_instrumentator import Instrumentator
+from redis.asyncio import Redis
+
+from common.errors import register_error_handlers
+from common.rate_limit import RateLimitMiddleware
+from app.config import Settings
+from app.repositories.llm_client import GeminiClient
+from app.repositories.cache import AICache
+from app.services.ai_service import AIService
+from app.routes.ai import router as ai_router
+
+app_settings = Settings()
+
+_redis: Redis | None = None
+_ai_service: AIService | None = None
+_http_client: httpx.AsyncClient | None = None
+
+
+def get_ai_service() -> AIService:
+    assert _ai_service is not None
+    return _ai_service
+
+
+def _create_health_router() -> APIRouter:
+    router = APIRouter(tags=["health"])
+
+    @router.get("/health/live")
+    async def liveness() -> dict[str, str]:
+        return {"status": "ok"}
+
+    @router.get("/health/ready")
+    async def readiness() -> JSONResponse:
+        checks: dict[str, str] = {}
+        healthy = True
+
+        if _redis is not None:
+            try:
+                await _redis.ping()
+                checks["redis"] = "ok"
+            except Exception:
+                checks["redis"] = "unavailable"
+                healthy = False
+
+        has_key = bool(app_settings.gemini_api_key)
+        checks["gemini_api_key"] = "configured" if has_key else "missing"
+        if not has_key:
+            healthy = False
+
+        status_code = 200 if healthy else 503
+        return JSONResponse(
+            content={"status": "ok" if healthy else "degraded", "checks": checks},
+            status_code=status_code,
+        )
+
+    return router
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
+    global _redis, _ai_service, _http_client
+
+    _redis = Redis.from_url(app_settings.redis_url)
+    _http_client = httpx.AsyncClient()
+
+    llm = GeminiClient(_http_client, app_settings.gemini_api_key, app_settings.gemini_model)
+    cache = AICache(_redis)
+    _ai_service = AIService(llm, cache, app_settings)
+
+    yield
+
+    await _http_client.aclose()
+    await _redis.aclose()
+
+
+app = FastAPI(title="AI Service", lifespan=lifespan)
+register_error_handlers(app)
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=app_settings.allowed_origins.split(","),
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+app.add_middleware(
+    RateLimitMiddleware,
+    redis_getter=lambda: _redis,
+    limit=app_settings.rate_limit_per_minute,
+    window=60,
+)
+app.include_router(ai_router)
+app.include_router(_create_health_router())
+
+Instrumentator().instrument(app).expose(app)
